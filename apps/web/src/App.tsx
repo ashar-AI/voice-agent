@@ -4,6 +4,7 @@ import type {
   RiskLevel,
   ScenarioId
 } from "@voice-agent/contracts";
+import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CallSurface } from "./CallSurface";
 import {
@@ -283,51 +284,15 @@ export function App() {
           </div>
         </nav>
 
-        <div className="page-head dashboard-head">
-          <div>
-            <span className="eyebrow">Care recipient</span>
-            <h1>{snapshot.profile.displayName}</h1>
-            <div className="patient-meta">
-              <span>{icon("cake")}{snapshot.profile.age} years old</span>
-              <span>{icon("home")}{snapshot.profile.livesAlone ? "Lives alone" : "Lives with support"}</span>
-              <span>{icon("call")}{snapshot.profile.emergencyContactName} ({snapshot.profile.emergencyContactRelation})</span>
-            </div>
-          </div>
-        </div>
-
         {error ? <div className="error">{icon("error")}{error}</div> : null}
 
-        <section className="stat-grid">
-          <StatCard
-            label="Risk score"
-            value={String(snapshot.riskState.riskScore)}
-            iconName="monitoring"
-            iconTone={snapshot.riskState.riskLevel === "stable" ? "green" : "red"}
-            trend={scoreTrend}
-            foot={`${riskLabels[snapshot.riskState.riskLevel]} risk band`}
-          />
-          <StatCard
-            label="Call status"
-            value={callStatus.value}
-            iconName={callStatus.iconName}
-            iconTone={callStatus.iconTone}
-            foot={callStatus.detail}
-          />
-          <StatCard
-            label="Open questions"
-            value={String(snapshot.riskState.uncertainties.length)}
-            iconName="help"
-            iconTone="slate"
-            foot={firstOpenQuestion ?? "No open questions"}
-          />
-          <StatCard
-            label="Open alerts"
-            value={String(snapshot.alerts.length)}
-            iconName="notifications_active"
-            iconTone={snapshot.alerts.length > 0 ? "red" : "green"}
-            foot={activeAlert ? activeAlert.title : "No active alert"}
-          />
-        </section>
+        <CareOverview
+          activeAlert={activeAlert}
+          callStatus={callStatus}
+          firstOpenQuestion={firstOpenQuestion}
+          scoreTrend={scoreTrend}
+          snapshot={snapshot}
+        />
 
         <section className="grid monitor-grid">
           <TranscriptCard snapshot={snapshot} />
@@ -403,38 +368,83 @@ export function App() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  iconName,
-  iconTone,
-  trend,
-  foot
+function CareOverview({
+  activeAlert,
+  callStatus,
+  firstOpenQuestion,
+  scoreTrend,
+  snapshot
 }: {
-  label: string;
-  value: string;
-  iconName: string;
-  iconTone: "green" | "red" | "slate";
-  trend?: { dir: "up" | "down" | "flat"; text: string };
-  foot: string;
+  activeAlert: DashboardSnapshot["alerts"][number] | undefined;
+  callStatus: ReturnType<typeof getCallStatus>;
+  firstOpenQuestion: string | undefined;
+  scoreTrend?: { dir: "up" | "down" | "flat"; text: string };
+  snapshot: DashboardSnapshot;
 }) {
+  const scoreAngle = `${Math.max(0, Math.min(snapshot.riskState.riskScore, 100)) * 3.6}deg`;
+  const watchText = activeAlert
+    ? "Caregiver follow-up is open"
+    : snapshot.session?.status === "active"
+      ? "Live check-in is underway"
+      : "Care watch is quiet";
+
   return (
-    <article className="stat-card">
-      <div className="stat-top">
-        <span className="stat-label">{label}</span>
-        <span className={`stat-icon ${iconTone}`}>{icon(iconName)}</span>
+    <section className={`care-overview ${snapshot.riskState.riskLevel}`} aria-label="Care overview">
+      <div className="care-person">
+        <div className="portrait-tile" aria-hidden="true">
+          <span>S</span>
+        </div>
+        <div className="care-person-copy">
+          <span className="eyebrow">Care recipient</span>
+          <h1>{snapshot.profile.displayName}</h1>
+          <p>{watchText}</p>
+          <div className="patient-meta">
+            <span>{icon("cake")}{snapshot.profile.age} years old</span>
+            <span>{icon("home")}{snapshot.profile.livesAlone ? "Lives alone" : "Lives with support"}</span>
+            <span>{icon("call")}{snapshot.profile.emergencyContactName} ({snapshot.profile.emergencyContactRelation})</span>
+          </div>
+        </div>
       </div>
-      <div className="stat-sub">
-        <span className="stat-value">{value}</span>
-        {trend ? (
-          <span className={`trend ${trend.dir}`}>
-            {icon(trend.dir === "up" ? "trending_up" : trend.dir === "down" ? "trending_down" : "trending_flat")}
-            {trend.text}
+
+      <div className="care-pulse">
+        <div
+          className={`score-ring ${snapshot.riskState.riskLevel}`}
+          style={{ "--score-angle": scoreAngle } as CSSProperties}
+          aria-label={`Risk score ${snapshot.riskState.riskScore}`}
+        >
+          <strong>{snapshot.riskState.riskScore}</strong>
+          <span>risk</span>
+        </div>
+        <div className="pulse-copy">
+          <span className={`risk-badge ${snapshot.riskState.riskLevel}`}>
+            {riskLabels[snapshot.riskState.riskLevel]}
           </span>
-        ) : null}
+          <strong>{callStatus.value}</strong>
+          <span>{callStatus.detail}</span>
+          {scoreTrend ? (
+            <em className={`trend-text ${scoreTrend.dir}`}>
+              {scoreTrend.dir === "up" ? "Risk +" : scoreTrend.dir === "down" ? "Risk " : "Risk "}
+              {scoreTrend.text}
+            </em>
+          ) : null}
+        </div>
       </div>
-      <span className="stat-foot">{foot}</span>
-    </article>
+
+      <div className="care-strip">
+        <div>
+          <span>{icon("help")}Open question</span>
+          <strong>{firstOpenQuestion ?? "None"}</strong>
+        </div>
+        <div>
+          <span>{icon("sensors")}Signals</span>
+          <strong>{snapshot.riskState.signals.length}</strong>
+        </div>
+        <div>
+          <span>{icon("notifications_active")}Alerts</span>
+          <strong>{snapshot.alerts.length}</strong>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -620,10 +630,19 @@ function TranscriptCard({ snapshot }: { snapshot: DashboardSnapshot }) {
       <span className="card-kicker">{icon("forum")}Live check-in</span>
       <h2>Conversation transcript</h2>
       {snapshot.transcript.length === 0 ? (
-        <div className="empty-state transcript-empty">
-          {icon("speaker_notes")}
-          <strong>No transcript yet</strong>
-          <span>Live turns will appear here as the agent reports them.</span>
+        <div className="conversation-waiting">
+          <div className="listening-mark" aria-hidden="true">
+            {icon("graphic_eq")}
+          </div>
+          <div>
+            <strong>Waiting for the first check-in turn</strong>
+            <span>Transcript, translation, and risk updates will collect here.</span>
+          </div>
+          <div className="conversation-ghosts" aria-hidden="true">
+            <span>Kizuna greeting</span>
+            <span>Elder response</span>
+            <span>Care signal</span>
+          </div>
         </div>
       ) : (
         <div className="turn-list">
