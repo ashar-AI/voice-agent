@@ -28,6 +28,7 @@ packages/contracts
 
 docs
   Architecture, Gemini agent setup, service contracts, deployment notes, and demo scenarios.
+  Finalized agent requirements and task-wise implementation plan.
 ```
 
 ## Local Development
