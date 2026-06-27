@@ -5,6 +5,7 @@ import type {
   ScenarioId
 } from "@voice-agent/contracts";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CallSurface } from "./CallSurface";
 import {
   completeCall,
   createDashboardEventSource,
@@ -16,6 +17,7 @@ import {
 } from "./api";
 
 const ELDER_ID = "sato_001";
+const ADK_BASE_URL = import.meta.env.VITE_ADK_VOICE_BASE_URL ?? "http://localhost:8081";
 
 const riskLabels: Record<RiskLevel, string> = {
   stable: "Stable",
@@ -53,6 +55,9 @@ type RiskPoint = { score: number; level: RiskLevel };
 const icon = (name: string) => <span className="material-symbols-outlined">{name}</span>;
 
 export function App() {
+  const [surface, setSurface] = useState<"dashboard" | "call">(() =>
+    window.location.hash === "#call" ? "call" : "dashboard"
+  );
   const [scenarios, setScenarios] = useState<DemoScenario[]>([]);
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
   const [selectedScenarioId, setSelectedScenarioId] =
@@ -93,6 +98,15 @@ export function App() {
     }
 
     void load();
+  }, []);
+
+  useEffect(() => {
+    const onHashChange = () => {
+      setSurface(window.location.hash === "#call" ? "call" : "dashboard");
+    };
+
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
   useEffect(() => {
@@ -239,45 +253,71 @@ export function App() {
   }).format(new Date(snapshot.updatedAt));
 
   const scoreTrend = computeTrend(riskHistory);
+  const callStatus = getCallStatus(snapshot);
+  const latestElderTurn = getLatestTurn(snapshot, "elder");
+  const primarySignal = snapshot.riskState.signals[0];
+  const firstOpenQuestion = snapshot.riskState.uncertainties[0];
+
+  if (surface === "call") {
+    return (
+      <CallSurface
+        elderId={ELDER_ID}
+        adkBaseUrl={ADK_BASE_URL}
+        onSnapshot={setSnapshot}
+        onClose={() => {
+          window.location.hash = "dashboard";
+        }}
+      />
+    );
+  }
 
   return (
     <div className="shell">
-      <Sidebar isBusy={isBusy} onReset={() => void reset()} />
+      <Sidebar
+        isBusy={isBusy}
+        onReset={() => void reset()}
+        snapshot={snapshot}
+        isRealtimeConnected={isRealtimeConnected}
+      />
 
-      <main className="main-content">
+      <main className="main-content" id="overview">
         <nav className="app-header">
-          <h2>Caregiver Command Center</h2>
+          <h2>Caregiver Dashboard</h2>
           <div className="status-row">
             <span className={isRealtimeConnected ? "live-indicator" : ""}>
-              {isRealtimeConnected ? "Live" : "Reconnecting"}
+              {isRealtimeConnected ? "Live updates" : "Reconnecting"}
             </span>
-            <span>{snapshot.session ? `Check-in ${snapshot.session.status}` : "No active check-in"}</span>
+            <span>{callStatus.label}</span>
             <span>{icon("schedule")}{lastUpdated}</span>
             <span className="avatar">YS</span>
           </div>
         </nav>
 
-        <div className="page-head">
-          <span className="eyebrow">Welfare intelligence · Q live cohort</span>
-          <h1>{snapshot.profile.displayName}</h1>
-          <p>
-            Daily Japanese voice check-ins track well-being, longitudinal memory, and early
-            safety signals — quantified into the metrics below so family and caregivers know
-            exactly when to act.
-          </p>
-          <div className="patient-meta">
-            <span>{icon("cake")}{snapshot.profile.age} years old</span>
-            <span>{icon("home")}{snapshot.profile.livesAlone ? "Lives alone" : "Lives with support"}</span>
-            <span>{icon("call")}{snapshot.profile.emergencyContactName} ({snapshot.profile.emergencyContactRelation})</span>
+        <div className="page-head dashboard-head">
+          <div>
+            <span className="eyebrow">Care recipient</span>
+            <h1>{snapshot.profile.displayName}</h1>
+            <div className="patient-meta">
+              <span>{icon("cake")}{snapshot.profile.age} years old</span>
+              <span>{icon("home")}{snapshot.profile.livesAlone ? "Lives alone" : "Lives with support"}</span>
+              <span>{icon("call")}{snapshot.profile.emergencyContactName} ({snapshot.profile.emergencyContactRelation})</span>
+            </div>
+          </div>
+          <div className="head-actions">
+            <button className="primary" onClick={() => { window.location.hash = "call"; }}>
+              {icon("mic")}Open elder call
+            </button>
+            <button className="secondary" disabled={isBusy} onClick={() => void reset()}>
+              {icon("restart_alt")}Reset
+            </button>
           </div>
         </div>
 
         {error ? <div className="error">{icon("error")}{error}</div> : null}
 
-        {/* KPI stat cards */}
         <section className="stat-grid">
           <StatCard
-            label="Well-being Risk Score"
+            label="Risk score"
             value={String(snapshot.riskState.riskScore)}
             iconName="monitoring"
             iconTone={snapshot.riskState.riskLevel === "stable" ? "green" : "red"}
@@ -285,101 +325,66 @@ export function App() {
             foot={`${riskLabels[snapshot.riskState.riskLevel]} risk band`}
           />
           <StatCard
-            label="Active Risk Signals"
+            label="Call status"
+            value={callStatus.value}
+            iconName={callStatus.iconName}
+            iconTone={callStatus.iconTone}
+            foot={callStatus.detail}
+          />
+          <StatCard
+            label="Open questions"
+            value={String(snapshot.riskState.uncertainties.length)}
+            iconName="help"
+            iconTone="slate"
+            foot={firstOpenQuestion ?? "No open questions"}
+          />
+          <StatCard
+            label="Risk signals"
             value={String(snapshot.riskState.signals.length)}
             iconName="sensors"
-            iconTone="slate"
+            iconTone={snapshot.riskState.signals.length > 0 ? "red" : "green"}
             foot={
-              snapshot.riskState.signals.length > 0
-                ? snapshot.riskState.signals.map((s) => s.label).slice(0, 2).join(", ")
+              primarySignal
+                ? `${riskLabels[primarySignal.severity]} · ${primarySignal.label}`
                 : "No signals detected"
             }
           />
-          <StatCard
-            label="Open Alerts"
-            value={String(snapshot.alerts.length)}
-            iconName="notifications_active"
-            iconTone={snapshot.alerts.length > 0 ? "red" : "green"}
-            foot={snapshot.alerts.length > 0 ? "Caregiver follow-up required" : "Caregiver channel quiet"}
-          />
-          <StatCard
-            label="Memory Context"
-            value={String(snapshot.memories.length)}
-            iconName="database"
-            iconTone="slate"
-            foot="Longitudinal facts retained"
-          />
         </section>
 
-        {/* Charts */}
         <section className="grid charts-grid">
           <article className="card">
             <div className="card-head">
               <div>
                 <h2>Risk Score Trend</h2>
-                <p className="sub">Score evolution across this check-in's captured responses</p>
+                <p className="sub">Captured risk score changes in the current session</p>
               </div>
               <span className="card-kicker">{icon("show_chart")}Live session</span>
             </div>
             <RiskTrendChart history={riskHistory} />
           </article>
 
-          <article className="card">
-            <div className="card-head">
-              <div>
-                <h2>Signal Severity Mix</h2>
-                <p className="sub">Distribution of detected signals</p>
-              </div>
-            </div>
-            <SignalDonut snapshot={snapshot} />
-          </article>
+          <EvidenceCard snapshot={snapshot} />
         </section>
 
-        {/* Reasoning + Alert */}
-        <section className="grid mid-grid">
+        <section className="grid mid-grid" id="alerts">
           <RiskCard snapshot={snapshot} />
-          <AlertCard alert={activeAlert} />
+          <AlertCard alert={activeAlert} alertCount={snapshot.alerts.length} />
         </section>
 
-        {/* Console */}
-        <section className="panel console-panel">
-          <div className="section-title">
-            <div>
-              <h2>Live Check-In Console</h2>
-              <p>Start the scheduled call, capture the elder response, and let the platform update risk, memory, and alerts.</p>
-            </div>
-            <button className="secondary" disabled={isBusy} onClick={() => void reset()}>
-              {icon("restart_alt")}Clear Session
-            </button>
+        <section className="grid detail-grid" id="transcript">
+          <TranscriptCard snapshot={snapshot} />
+          <div className="side-stack">
+            <SummaryCard snapshot={snapshot} />
+            <BriefingCard snapshot={snapshot} />
+            <MemoryCard snapshot={snapshot} />
           </div>
+        </section>
 
-          <div className="console-flow" aria-label="Check-in workflow">
-            <div className={snapshot.session ? "flow-node done" : "flow-node"}>
-              <span>1</span>
-              <strong>Call started</strong>
-              <em>Agent opens from memory</em>
-            </div>
-            <div className={snapshot.transcript.some((turn) => turn.speaker === "elder") ? "flow-node done" : "flow-node"}>
-              <span>2</span>
-              <strong>Response captured</strong>
-              <em>Utterance is evaluated</em>
-            </div>
-            <div className={snapshot.riskState.signals.length > 0 ? "flow-node done" : "flow-node"}>
-              <span>3</span>
-              <strong>Risk updated</strong>
-              <em>Next goal is selected</em>
-            </div>
-            <div className={snapshot.session?.status === "completed" ? "flow-node done" : "flow-node"}>
-              <span>4</span>
-              <strong>Summary ready</strong>
-              <em>Caregiver follow-up</em>
-            </div>
-          </div>
-
-          <div className="operator-note">
-            Input source: select a sample elder response or edit it manually.
-            The voice channel will send the same payload automatically.
-          </div>
+        <details className="demo-controls">
+          <summary>
+            <span>{icon("tune")}Demo Controls</span>
+            <small>{latestElderTurn ? `Latest: ${latestElderTurn.textEn ?? latestElderTurn.textJa}` : "Fallback text mode"}</small>
+          </summary>
 
           <div className="scenario-grid">
             {scenarios.map((scenario) => (
@@ -401,7 +406,7 @@ export function App() {
 
           <div className="input-row">
             <label>
-              Captured elder response in Japanese
+              Japanese response
               <textarea
                 value={customTextJa}
                 onChange={(event) => setCustomTextJa(event.target.value)}
@@ -409,7 +414,7 @@ export function App() {
               />
             </label>
             <label>
-              English translation for caregiver review
+              English review text
               <textarea
                 value={customTextEn}
                 onChange={(event) => setCustomTextEn(event.target.value)}
@@ -419,51 +424,39 @@ export function App() {
           </div>
 
           <div className="button-row">
-            <button className="primary" disabled={isBusy || !selectedScenario} onClick={() => void startSelectedCall()}>
-              {icon("call")}{isBusy ? "Working..." : "Start Check-In"}
+            <button className="secondary" disabled={isBusy || !selectedScenario} onClick={() => void startSelectedCall()}>
+              {icon("call")}{isBusy ? "Working..." : "Start fallback"}
             </button>
-            <button className="primary" disabled={isBusy || !customTextJa || !activeSession} onClick={() => void sendElderResponse()}>
-              {icon("graphic_eq")}Process Response
+            <button className="secondary" disabled={isBusy || !customTextJa || !activeSession} onClick={() => void sendElderResponse()}>
+              {icon("graphic_eq")}Send turn
             </button>
             <button className="secondary" disabled={isBusy || !activeSession} onClick={() => void completeActiveCall()}>
-              {icon("task_alt")}Complete Check-In
+              {icon("task_alt")}Complete fallback
             </button>
           </div>
-        </section>
-
-        {/* Transcript + side */}
-        <section className="grid detail-grid">
-          <TranscriptCard snapshot={snapshot} />
-          <div className="side-stack">
-            <MemoryCard snapshot={snapshot} />
-            <SummaryCard snapshot={snapshot} />
-          </div>
-        </section>
-
-        <section className="cta-banner">
-          <div>
-            <h3>Built for scale — pilot-ready in days</h3>
-            <p>
-              Evidence-backed escalation, memory-aware conversations, and a caregiver console
-              that turns every call into a quantifiable welfare signal.
-            </p>
-          </div>
-          <button className="primary" onClick={() => void startSelectedCall()} disabled={isBusy}>
-            {icon("rocket_launch")}Run Live Demo
-          </button>
-        </section>
+        </details>
       </main>
     </div>
   );
 }
 
-function Sidebar({ isBusy, onReset }: { isBusy: boolean; onReset: () => void }) {
+function Sidebar({
+  isBusy,
+  onReset,
+  snapshot,
+  isRealtimeConnected = false
+}: {
+  isBusy: boolean;
+  onReset: () => void;
+  snapshot?: DashboardSnapshot;
+  isRealtimeConnected?: boolean;
+}) {
   const nav = [
-    { icon: "dashboard", label: "Overview", active: true },
-    { icon: "groups", label: "Senior Profiles", active: false },
-    { icon: "graphic_eq", label: "Live Monitor", active: false },
-    { icon: "notifications", label: "Alert Center", active: false },
-    { icon: "monitoring", label: "Analytics", active: false }
+    { icon: "dashboard", label: "Overview", href: "#overview", active: true },
+    { icon: "forum", label: "Transcript", href: "#transcript", active: false },
+    { icon: "warning", label: "Alerts", href: "#alerts", active: false },
+    { icon: "history", label: "Memory", href: "#memory", active: false },
+    { icon: "mic", label: "Elder call", href: "#call", active: false }
   ];
 
   return (
@@ -478,12 +471,23 @@ function Sidebar({ isBusy, onReset }: { isBusy: boolean; onReset: () => void }) 
       <div className="sidebar-section-label">Workspace</div>
       <nav className="sidebar-nav">
         {nav.map((item) => (
-          <a className={item.active ? "sidebar-nav-link active" : "sidebar-nav-link"} href="#" key={item.label}>
+          <a className={item.active ? "sidebar-nav-link active" : "sidebar-nav-link"} href={item.href} key={item.label}>
             <span className="material-symbols-outlined">{item.icon}</span>
             <span>{item.label}</span>
           </a>
         ))}
       </nav>
+      {snapshot ? (
+        <div className="sidebar-status">
+          <span className={isRealtimeConnected ? "sidebar-live is-live" : "sidebar-live"}>
+            {isRealtimeConnected ? "Live updates" : "Sync pending"}
+          </span>
+          <div>
+            <strong>{snapshot.profile.displayName}</strong>
+            <small>{riskLabels[snapshot.riskState.riskLevel]} · {snapshot.riskState.riskScore}/100</small>
+          </div>
+        </div>
+      ) : null}
       <div className="sidebar-footer">
         <button className="secondary" disabled={isBusy} onClick={onReset} style={{ width: "100%" }}>
           <span className="material-symbols-outlined">restart_alt</span>
@@ -540,6 +544,65 @@ function computeTrend(history: RiskPoint[]): { dir: "up" | "down" | "flat"; text
     return { dir: "flat", text: "0" };
   }
   return { dir: delta > 0 ? "up" : "down", text: `${delta > 0 ? "+" : ""}${delta}` };
+}
+
+function getCallStatus(snapshot: DashboardSnapshot): {
+  label: string;
+  value: string;
+  detail: string;
+  iconName: string;
+  iconTone: "green" | "red" | "slate";
+} {
+  if (!snapshot.session) {
+    return {
+      label: "No active check-in",
+      value: "Idle",
+      detail: "Waiting for elder call",
+      iconName: "pause_circle",
+      iconTone: "slate"
+    };
+  }
+
+  if (snapshot.session.status === "active") {
+    return {
+      label: "Check-in active",
+      value: "Live",
+      detail: `Started ${formatTime(snapshot.session.startedAt)}`,
+      iconName: "radio_button_checked",
+      iconTone: "green"
+    };
+  }
+
+  return {
+    label: "Check-in completed",
+    value: "Done",
+    detail: snapshot.session.completedAt
+      ? `Completed ${formatTime(snapshot.session.completedAt)}`
+      : "Summary pending",
+    iconName: "task_alt",
+    iconTone: "green"
+  };
+}
+
+function getLatestTurn(
+  snapshot: DashboardSnapshot,
+  speaker: DashboardSnapshot["transcript"][number]["speaker"]
+) {
+  return [...snapshot.transcript].reverse().find((turn) => turn.speaker === speaker);
+}
+
+function formatTime(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatShortDate(value: string): string {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric"
+  }).format(new Date(value));
 }
 
 function RiskTrendChart({ history }: { history: RiskPoint[] }) {
@@ -614,86 +677,52 @@ function RiskTrendChart({ history }: { history: RiskPoint[] }) {
   );
 }
 
-function SignalDonut({ snapshot }: { snapshot: DashboardSnapshot }) {
-  const order: RiskLevel[] = ["urgent", "high", "concern", "watch", "stable"];
-  const counts: Record<RiskLevel, number> = { stable: 0, watch: 0, concern: 0, high: 0, urgent: 0 };
-  for (const signal of snapshot.riskState.signals) {
-    counts[signal.severity] += 1;
-  }
-  const segments = order
-    .map((level) => ({ level, value: counts[level], color: riskColors[level] }))
-    .filter((segment) => segment.value > 0);
-  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-
-  const size = 180;
-  const r = 70;
-  const stroke = 22;
-  const cx = size / 2;
-  const cy = size / 2;
-  const circ = 2 * Math.PI * r;
-
-  let offset = 0;
-
+function EvidenceCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+  const signals = snapshot.riskState.signals.slice(0, 3);
   return (
-    <div className="donut-wrap">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Signal severity distribution">
-        <g transform={`rotate(-90 ${cx} ${cy})`}>
-          <circle cx={cx} cy={cy} r={r} fill="transparent" stroke="#edeeef" strokeWidth={stroke} />
-          {total > 0 &&
-            segments.map((segment) => {
-              const dash = (segment.value / total) * circ;
-              const el = (
-                <circle
-                  key={segment.level}
-                  cx={cx}
-                  cy={cy}
-                  r={r}
-                  fill="transparent"
-                  stroke={segment.color}
-                  strokeWidth={stroke}
-                  strokeDasharray={`${dash} ${circ - dash}`}
-                  strokeDashoffset={-offset}
-                />
-              );
-              offset += dash;
-              return el;
-            })}
-        </g>
-        <text className="donut-center-label" x={cx} y={cy - 6} textAnchor="middle">Signals</text>
-        <text className="donut-center-value" x={cx} y={cy + 16} textAnchor="middle">{total}</text>
-      </svg>
-
-      <div className="legend">
-        {total === 0 ? (
-          <div className="legend-row">
-            <span className="legend-left">
-              <span className="legend-dot" style={{ background: "#cbd5e1" }} />
-              No signals detected yet
-            </span>
-            <span className="legend-val">0</span>
-          </div>
-        ) : (
-          segments.map((segment) => (
-            <div className="legend-row" key={segment.level}>
-              <span className="legend-left">
-                <span className="legend-dot" style={{ background: segment.color }} />
-                {riskLabels[segment.level]} severity
-              </span>
-              <span className="legend-val">
-                {segment.value} · {Math.round((segment.value / total) * 100)}%
-              </span>
-            </div>
-          ))
-        )}
+    <article className="card evidence-card">
+      <div className="card-head">
+        <div>
+          <h2>Risk Evidence</h2>
+          <p className="sub">{signals.length} active signal{signals.length === 1 ? "" : "s"}</p>
+        </div>
+        <span className={`risk-badge ${snapshot.riskState.riskLevel}`}>
+          {riskLabels[snapshot.riskState.riskLevel]}
+        </span>
       </div>
-    </div>
+
+      {signals.length === 0 ? (
+        <div className="empty-state compact">
+          {icon("verified")}
+          <strong>No risk evidence yet</strong>
+          <span>Baseline monitoring remains stable.</span>
+        </div>
+      ) : (
+        <div className="evidence-stack">
+          {signals.map((signal) => (
+            <div className={`evidence-row ${signal.severity}`} key={signal.id}>
+              <span className="evidence-severity">{riskLabels[signal.severity]}</span>
+              <div>
+                <strong>{signal.label}</strong>
+                <p>{signal.evidence}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
   );
 }
 
 function RiskCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
-    <article className="card">
-      <span className="card-kicker">{icon("psychology")}AI reasoning state</span>
+    <article className="card risk-card">
+      <div className="risk-card-head">
+        <span className="card-kicker">{icon("psychology")}AI reasoning state</span>
+        <span className={`risk-badge ${snapshot.riskState.riskLevel}`}>
+          {riskLabels[snapshot.riskState.riskLevel]}
+        </span>
+      </div>
       <p className="next-goal">{snapshot.riskState.nextGoal}</p>
       <div className="chip-row">
         {snapshot.riskState.knownFacts.map((fact) => (
@@ -714,7 +743,13 @@ function RiskCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   );
 }
 
-function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | undefined }) {
+function AlertCard({
+  alert,
+  alertCount
+}: {
+  alert: DashboardSnapshot["alerts"][number] | undefined;
+  alertCount: number;
+}) {
   if (!alert) {
     return (
       <article className="card calm">
@@ -722,7 +757,7 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
         <div className="calm-state">
           {icon("check_circle")}
           <strong>No active alert</strong>
-          <span>Caregiver notification stays quiet until evidence crosses threshold.</span>
+          <span>0 open caregiver notifications</span>
         </div>
       </article>
     );
@@ -731,7 +766,7 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
   return (
     <article className="card alert">
       <span className="card-kicker">{icon("warning")}Alert center</span>
-      <span className="alert-badge">{icon("priority_high")}{alert.severity} priority</span>
+      <span className="alert-badge">{icon("priority_high")}{alertCount} open · {alert.severity} priority</span>
       <h2>{alert.title}</h2>
       <p>{alert.reason}</p>
       <ul className="evidence-list">
@@ -739,22 +774,32 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
           <li key={item}>{icon("arrow_right")}{item}</li>
         ))}
       </ul>
+      <div className="recommend">
+        {icon("contact_phone")}
+        {alert.suggestedAction}
+      </div>
     </article>
   );
 }
 
 function TranscriptCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+  const speakerLabels: Record<DashboardSnapshot["transcript"][number]["speaker"], string> = {
+    ai: "Agent",
+    elder: "Elder",
+    system: "System"
+  };
+
   return (
     <article className="card">
       <span className="card-kicker">{icon("forum")}Live check-in</span>
       <h2>Conversation transcript</h2>
       {snapshot.transcript.length === 0 ? (
-        <p className="muted">Start the scheduled check-in to create the live transcript.</p>
+        <p className="muted">Transcript will appear when the elder call begins.</p>
       ) : (
         <div className="turn-list">
           {snapshot.transcript.map((turn) => (
             <div className={`turn ${turn.speaker}`} key={turn.id}>
-              <strong>{turn.speaker}</strong>
+              <strong>{speakerLabels[turn.speaker]} · {formatTime(turn.timestamp)}</strong>
               <p lang="ja">{turn.textJa}</p>
               {turn.textEn ? <span>{turn.textEn}</span> : null}
             </div>
@@ -767,13 +812,13 @@ function TranscriptCard({ snapshot }: { snapshot: DashboardSnapshot }) {
 
 function MemoryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
-    <article className="card">
+    <article className="card" id="memory">
       <span className="card-kicker">{icon("history")}Memory timeline</span>
       <h2>Longitudinal context</h2>
       <div className="memory-list">
-        {snapshot.memories.map((memory) => (
+        {snapshot.memories.slice(0, 4).map((memory) => (
           <div className={`memory-item ${memory.importance}`} key={memory.id}>
-            <span className="mem-cat">{memory.category}</span>
+            <span className="mem-cat">{memory.category} · {formatShortDate(memory.observedAt)}</span>
             <p>{memory.text}</p>
             <span className="mem-imp">{memory.importance} importance</span>
           </div>
@@ -789,7 +834,7 @@ function SummaryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
       <article className="card summary-card">
         <span className="card-kicker">{icon("summarize")}Post-call summary</span>
         <h2>Pending</h2>
-        <p className="muted">Complete the call to create a final summary and follow-up recommendation.</p>
+        <p className="muted">Summary will appear after call completion.</p>
       </article>
     );
   }
@@ -802,6 +847,38 @@ function SummaryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
       <div className="chip-row">
         {snapshot.latestSummary.keyEvidence.map((item) => <span className="chip" key={item}>{item}</span>)}
       </div>
+    </article>
+  );
+}
+
+function BriefingCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+  if (!snapshot.latestBriefing) {
+    return (
+      <article className="card briefing-card">
+        <span className="card-kicker">{icon("clinical_notes")}Caregiver briefing</span>
+        <h2>Pending</h2>
+        <p className="muted">Briefing will appear with the post-call handoff.</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="card briefing-card">
+      <span className="card-kicker">{icon("clinical_notes")}Caregiver briefing</span>
+      <h2>{snapshot.latestBriefing.briefing}</h2>
+      <div className="briefing-follow-up">
+        {icon("family_restroom")}
+        <span>{snapshot.latestBriefing.recommendedFamilyFollowUp}</span>
+      </div>
+      <div className="evidence-stack">
+        {snapshot.latestBriefing.evidenceBullets.slice(0, 3).map((item) => (
+          <div className="briefing-evidence" key={item}>
+            {icon("check")}
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+      <p className="safety-wording">{snapshot.latestBriefing.safetyWording}</p>
     </article>
   );
 }
