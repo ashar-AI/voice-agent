@@ -165,6 +165,8 @@ test("agent final summary tool stores the summary and completes the call", async
   const output = FinalizeCallSummaryToolOutputSchema.parse(response.json());
   const snapshot = await getDashboardSnapshot();
   assert.match(output.summary.id, /^summary_/);
+  assert.equal(output.snapshot.latestSummary?.id, output.summary.id);
+  assert.equal(output.snapshot.session?.status, "completed");
   assert.equal(snapshot.latestSummary?.id, output.summary.id);
   assert.equal(snapshot.latestBriefing?.sessionId, started.session.sessionId);
   assert.equal(snapshot.latestBriefing?.evidenceBullets.length, 3);

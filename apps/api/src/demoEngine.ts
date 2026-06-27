@@ -272,7 +272,8 @@ export async function finalizeCallSummaryTool(
   await createAndStoreBriefing(summary);
 
   return {
-    summary
+    summary,
+    snapshot: snapshot()
   };
 }
 

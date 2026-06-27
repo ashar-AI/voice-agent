@@ -335,6 +335,8 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
   const audioSampleRateRef = useRef<number | null>(null);
   const micSuppressedUntilRef = useRef(0);
   const micResumeTimerRef = useRef<number | null>(null);
+  const finalizeCloseTimerRef = useRef<number | null>(null);
+  const finalizedSessionRef = useRef<string | null>(null);
   const [status, setStatus] = useState<CallSurfaceStatus>("idle");
   const [micState, setMicState] = useState<MicState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -401,6 +403,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
     setEventSummaries([]);
     setSmokeText(defaultSmokeTextByLanguage[language]);
     setIsDebugOpen(false);
+    finalizedSessionRef.current = null;
   }, [adkBaseUrl, elderId]);
 
   useEffect(() => {
@@ -446,6 +449,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
   }
 
   function closeCurrentClient(nextMicState: MicState | "silent" = "stopped") {
+    clearFinalizeCloseTimer();
     const currentClient = clientRef.current;
     clientRef.current = null;
     stopAudio(nextMicState);
@@ -465,6 +469,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
     setError(null);
     setBootstrap(null);
     setEventSummaries([]);
+    finalizedSessionRef.current = null;
 
     try {
       const started = await startLiveSession(elderId);
@@ -517,6 +522,9 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
           const nextSnapshot = findDashboardSnapshot(payload);
           if (nextSnapshot) {
             onSnapshot(nextSnapshot);
+            if (nextSnapshot.session?.status === "completed") {
+              handleFinalizedSnapshot(runId, nextClient, nextSnapshot);
+            }
           }
           if (playedPackets > 0) {
             appendEventSummary(language === "ja" ? "音声の返答を再生しています。" : "Playing the voice response.");
@@ -686,6 +694,52 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
     if (micResumeTimerRef.current !== null) {
       window.clearTimeout(micResumeTimerRef.current);
       micResumeTimerRef.current = null;
+    }
+  }
+
+  function handleFinalizedSnapshot(
+    runId: number,
+    client: AdkVoiceClient,
+    nextSnapshot: DashboardSnapshot
+  ) {
+    const sessionId = nextSnapshot.session?.sessionId;
+    if (sessionId && finalizedSessionRef.current !== sessionId) {
+      finalizedSessionRef.current = sessionId;
+      appendEventSummary(
+        language === "ja"
+          ? "通話内容を確定しました。まもなく終了します。"
+          : "Call finalized. Ending shortly."
+      );
+    }
+
+    scheduleFinalizedCallClose(runId, client);
+  }
+
+  function scheduleFinalizedCallClose(runId: number, client: AdkVoiceClient) {
+    if (finalizeCloseTimerRef.current !== null) {
+      return;
+    }
+
+    finalizeCloseTimerRef.current = window.setTimeout(() => {
+      finalizeCloseTimerRef.current = null;
+      if (!isActiveRun(runId) || clientRef.current !== client) {
+        return;
+      }
+
+      closeCurrentClient("stopped");
+      setStatus("ended");
+      appendEventSummary(
+        language === "ja"
+          ? "見守り通話が完了しました。"
+          : "Welfare check call completed."
+      );
+    }, 7000);
+  }
+
+  function clearFinalizeCloseTimer() {
+    if (finalizeCloseTimerRef.current !== null) {
+      window.clearTimeout(finalizeCloseTimerRef.current);
+      finalizeCloseTimerRef.current = null;
     }
   }
 

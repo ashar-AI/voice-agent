@@ -337,7 +337,8 @@ export const FinalizeCallSummaryToolInputSchema = CallSummarySchema.omit({
 export type FinalizeCallSummaryToolInput = z.infer<typeof FinalizeCallSummaryToolInputSchema>;
 
 export const FinalizeCallSummaryToolOutputSchema = z.object({
-  summary: CallSummarySchema
+  summary: CallSummarySchema,
+  snapshot: DashboardSnapshotSchema
 });
 export type FinalizeCallSummaryToolOutput = z.infer<typeof FinalizeCallSummaryToolOutputSchema>;
 

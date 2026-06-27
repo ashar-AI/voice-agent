@@ -58,6 +58,8 @@ def record_risk_decision(
     next_goal: str,
     recommended_action: str,
     should_create_alert: bool,
+    should_continue_conversation: bool = True,
+    should_finalize_call: bool = False,
     session_id: str | None = None,
     latest_elder_text_ja: str | None = None,
     latest_elder_text_en: str | None = None,
@@ -76,9 +78,9 @@ def record_risk_decision(
         "openQuestions": open_questions,
         "nextGoal": next_goal,
         "recommendedAction": recommended_action,
-        "shouldContinueConversation": True,
+        "shouldContinueConversation": should_continue_conversation,
         "shouldCreateAlert": should_create_alert,
-        "shouldFinalizeCall": False,
+        "shouldFinalizeCall": should_finalize_call,
     }
     risk_state = {
         "riskLevel": normalized_risk,

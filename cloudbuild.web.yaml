@@ -1,0 +1,21 @@
+substitutions:
+  _IMAGE: ""
+  _VITE_API_BASE_URL: ""
+  _VITE_ADK_VOICE_BASE_URL: ""
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --file
+      - Dockerfile.web
+      - --tag
+      - ${_IMAGE}
+      - --build-arg
+      - VITE_API_BASE_URL=${_VITE_API_BASE_URL}
+      - --build-arg
+      - VITE_ADK_VOICE_BASE_URL=${_VITE_ADK_VOICE_BASE_URL}
+      - .
+
+images:
+  - ${_IMAGE}
