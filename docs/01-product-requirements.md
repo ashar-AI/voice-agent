@@ -1,22 +1,50 @@
-# Finalized Agent Requirements
+# Product Requirements
 
 Last updated: 2026-06-27 JST
+Status: locked direction
 
-This document locks the current product direction so implementation does not drift back into a local rules engine, IVR, or manual dashboard workflow.
+## Product Goal
 
-## Core Requirement
+CareVoice is an agent-driven welfare-check platform for elderly people living alone in Japan. It uses natural Japanese voice conversations, memory, realtime risk understanding, and caregiver escalation.
 
-CareVoice must be an agent-driven welfare-check platform. Gemini owns the live conversation loop and reasoning. Our app owns contracts, persistence, safety boundaries, tool execution, and caregiver UI.
+The core differentiator is not calling automation. It is a memory-enabled agent that understands the person over time and decides how to continue the conversation.
 
-The product must not behave like:
+## Non-Negotiables
 
-- a scripted IVR
-- a fixed decision tree
-- a checklist disguised as voice
-- a dashboard-controlled manual turn processor
-- a local regex/rules risk engine as the primary intelligence
+CareVoice must not behave like:
 
-## Final Target Flow
+- scripted IVR
+- fixed decision tree
+- checklist disguised as voice
+- caregiver-controlled manual turn processor
+- local regex/rules engine as primary intelligence
+
+## Ownership Boundary
+
+Gemini owns:
+
+- realtime Japanese conversation
+- adaptive next-question planning
+- risk-level decision from memory, transcript, and context
+- open-question tracking
+- deciding whether to continue, reassure, escalate, or close
+- memory proposal generation
+- alert explanation proposal
+- final caregiver summary
+
+CareVoice owns:
+
+- shared contracts and schemas
+- risk-level definitions and safety constraints
+- tool endpoints and input validation
+- Firestore persistence
+- alert creation and audit trail
+- caregiver dashboard rendering
+- local fallback only when Gemini is unavailable
+
+CareVoice may validate agent output. It should not be the primary decision-maker during normal operation.
+
+## Target User Flow
 
 ```text
 Scheduled/browser voice check-in starts
@@ -31,32 +59,9 @@ Scheduled/browser voice check-in starts
   -> dashboard updates passively for caregiver
 ```
 
-## What Gemini Owns
-
-- Japanese realtime conversation.
-- Adaptive next-question planning.
-- Risk-level decision from memory, transcript, and context.
-- Open-question tracking.
-- Deciding whether to continue, reassure, escalate, or close.
-- Memory proposal generation.
-- Alert explanation proposal.
-- Final caregiver summary.
-
-## What CareVoice Owns
-
-- Shared contracts and schemas.
-- Risk-level definitions and safety constraints.
-- Tool endpoints and input validation.
-- Firestore persistence.
-- Alert creation and audit trail.
-- Dashboard rendering.
-- Fallback local evaluator only when Gemini is unavailable.
-
-CareVoice may validate agent output, but it should not be the primary decision-maker for normal operation.
-
 ## Risk Levels
 
-Use five levels. Gemini chooses the level and must return evidence.
+Gemini chooses the level and must return evidence.
 
 ```text
 stable
@@ -92,7 +97,7 @@ Required agent decision shape:
 }
 ```
 
-## Dashboard Requirement
+## Dashboard Requirements
 
 The caregiver dashboard must show the working platform, not a plan or demo script.
 
@@ -108,11 +113,11 @@ Primary dashboard surface:
 - memory timeline
 - post-call summary
 
-The dashboard should not make the caregiver manually advance the agent through fixed steps.
+The dashboard must not make the caregiver manually advance the agent through fixed steps.
 
 Allowed for hackathon only:
 
-- a small, clearly secondary demo input panel
+- small secondary demo input panel
 - sample utterance presets
 - fallback simulation controls
 
@@ -126,16 +131,14 @@ Rules:
 
 - Name it clearly as fallback.
 - Keep it behind an adapter interface.
-- Do not present it as the product intelligence.
+- Do not present it as product intelligence.
 - Do not let scenario IDs determine risk.
 - Do not let local rules decide the final product flow when Gemini is available.
 
-## Bonus Feature Direction
+## Bonus Direction
 
-Primary bonus candidate:
+Primary bonus feature: Managed Agent for post-call caregiver briefing.
 
-- Managed Agent for post-call caregiver briefing.
-
-This agent should run after the call, using transcript, risk state, alert evidence, and memory timeline.
+It should run after the call using transcript, risk state, alert evidence, and memory timeline.
 
 It should not replace the realtime Gemini Live call agent unless mentors explicitly recommend that path and setup is reliable.
