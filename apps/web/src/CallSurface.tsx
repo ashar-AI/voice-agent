@@ -30,10 +30,11 @@ type AdkAudioPacket = {
   sampleRate: number;
 };
 
-type MicState = "idle" | "requesting" | "streaming" | "blocked" | "stopped";
+type MicState = "idle" | "requesting" | "streaming" | "playback" | "blocked" | "stopped";
 type SurfaceLanguage = "ja" | "en";
 
 const eventLimit = 12;
+const playbackEchoTailMs = 450;
 const defaultSmokeTextByLanguage: Record<SurfaceLanguage, string> = {
   ja: "今日は少しふらつきます。",
   en: "I feel a little unsteady today."
@@ -256,6 +257,13 @@ const micLabels: Record<
       background: "#ecfdf5",
       color: "#047857"
     },
+    playback: {
+      title: "Kizuna が話しています",
+      text: "返答中はマイク送信を一時停止し、声の回り込みを防ぎます。",
+      icon: "hearing",
+      background: "#eef6ff",
+      color: "#2563eb"
+    },
     blocked: {
       title: "利用できません",
       text: "権限またはブラウザ設定を確認してください。テキスト送信は使えます。",
@@ -293,6 +301,13 @@ const micLabels: Record<
       background: "#ecfdf5",
       color: "#047857"
     },
+    playback: {
+      title: "Kizuna is speaking",
+      text: "Mic sending is paused during playback to prevent audio echo.",
+      icon: "hearing",
+      background: "#eef6ff",
+      color: "#2563eb"
+    },
     blocked: {
       title: "Unavailable",
       text: "Check browser permissions. Text fallback is still available.",
@@ -318,6 +333,8 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
   const micStreamerRef = useRef<MicrophoneStreamer | null>(null);
   const audioPlayerRef = useRef<PcmAudioPlayer | null>(null);
   const audioSampleRateRef = useRef<number | null>(null);
+  const micSuppressedUntilRef = useRef(0);
+  const micResumeTimerRef = useRef<number | null>(null);
   const [status, setStatus] = useState<CallSurfaceStatus>("idle");
   const [micState, setMicState] = useState<MicState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -419,6 +436,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
     micStreamerRef.current = null;
     audioPlayerRef.current = null;
     audioSampleRateRef.current = null;
+    clearPlaybackSuppression();
     currentStreamer?.stop();
     currentPlayer?.stop();
 
@@ -576,6 +594,10 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
           return;
         }
 
+        if (isMicSuppressedForPlayback()) {
+          return;
+        }
+
         client.sendAudioChunk(chunk);
       });
 
@@ -585,7 +607,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
       }
 
       micStreamerRef.current = streamer;
-      setMicState("streaming");
+      setMicState(isMicSuppressedForPlayback() ? "playback" : "streaming");
       appendEventSummary(copy.micStreamingEvent);
     } catch (nextError) {
       if (!isActiveRun(runId)) {
@@ -612,16 +634,55 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
       audioSampleRateRef.current = sampleRate;
     }
 
+    let playedCount = 0;
+    let playbackEndsInMs = 0;
+
     try {
       for (const packet of audioPackets) {
-        audioPlayerRef.current.playBase64Pcm(packet.data);
+        const playback = audioPlayerRef.current.playBase64Pcm(packet.data);
+        playedCount += 1;
+        playbackEndsInMs = Math.max(playbackEndsInMs, playback.endsInMs);
       }
-      return audioPackets.length;
+      holdMicForPlayback(playbackEndsInMs);
+      return playedCount;
     } catch (nextError) {
       const message = getErrorMessage(nextError, "Voice playback failed.");
       setError(message);
       appendEventSummary(`Audio playback failed: ${message}`);
-      return 0;
+      return playedCount;
+    }
+  }
+
+  function holdMicForPlayback(playbackEndsInMs: number) {
+    const holdMs = Math.max(0, playbackEndsInMs) + playbackEchoTailMs;
+    const nextSuppressedUntil = Date.now() + holdMs;
+    micSuppressedUntilRef.current = Math.max(micSuppressedUntilRef.current, nextSuppressedUntil);
+
+    if (micStreamerRef.current && clientRef.current?.readyState === WebSocket.OPEN) {
+      setMicState("playback");
+    }
+
+    if (micResumeTimerRef.current !== null) {
+      window.clearTimeout(micResumeTimerRef.current);
+    }
+
+    micResumeTimerRef.current = window.setTimeout(() => {
+      micResumeTimerRef.current = null;
+      if (!isMicSuppressedForPlayback() && micStreamerRef.current && clientRef.current?.readyState === WebSocket.OPEN) {
+        setMicState("streaming");
+      }
+    }, Math.max(0, micSuppressedUntilRef.current - Date.now()));
+  }
+
+  function isMicSuppressedForPlayback() {
+    return Date.now() < micSuppressedUntilRef.current;
+  }
+
+  function clearPlaybackSuppression() {
+    micSuppressedUntilRef.current = 0;
+    if (micResumeTimerRef.current !== null) {
+      window.clearTimeout(micResumeTimerRef.current);
+      micResumeTimerRef.current = null;
     }
   }
 

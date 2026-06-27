@@ -41,7 +41,7 @@ export async function startPcm16MicrophoneStream(
 }
 
 export type PcmAudioPlayer = {
-  playBase64Pcm: (base64: string) => void;
+  playBase64Pcm: (base64: string) => { durationMs: number; endsInMs: number };
   stop: () => void;
 };
 
@@ -68,9 +68,14 @@ export function createPcmAudioPlayer(sampleRate = 24000): PcmAudioPlayer {
         void audioContext.resume();
       }
 
-      scheduledAt = Math.max(scheduledAt, audioContext.currentTime);
-      source.start(scheduledAt);
-      scheduledAt += buffer.duration;
+      const startsAt = Math.max(scheduledAt, audioContext.currentTime);
+      source.start(startsAt);
+      scheduledAt = startsAt + buffer.duration;
+
+      return {
+        durationMs: buffer.duration * 1000,
+        endsInMs: Math.max(0, scheduledAt - audioContext.currentTime) * 1000
+      };
     },
     stop: () => {
       void audioContext.close();
