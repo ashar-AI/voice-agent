@@ -1,0 +1,1255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gemini Tokyo Hackathon Plan - AI Welfare-Check Voice Companion</title>
+  <style>
+    :root {
+      --text: #1f2937;
+      --muted: #5f6b7a;
+      --line: #d9e2ee;
+      --surface: #ffffff;
+      --soft: #f6f8fb;
+      --blue: #1a73e8;
+      --green: #188038;
+      --yellow: #fbbc04;
+      --red: #d93025;
+      --shadow: 0 18px 45px rgba(31, 41, 55, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        linear-gradient(180deg, #f7faff 0%, #ffffff 34%, #ffffff 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    main {
+      width: min(1100px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 48px 0 72px;
+    }
+
+    header {
+      display: grid;
+      gap: 22px;
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: var(--shadow);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 10px;
+      color: var(--blue);
+      font-size: 0.82rem;
+      font-weight: 750;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 14px 0 0 var(--yellow), 28px 0 0 var(--red);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 850px;
+      margin-bottom: 0;
+      font-size: clamp(2.35rem, 6vw, 5rem);
+      line-height: 0.98;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 780px;
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(1.03rem, 2vw, 1.24rem);
+    }
+
+    .quick-points {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .quick-point {
+      min-height: 92px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--soft);
+    }
+
+    .quick-point strong {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--text);
+      font-size: 0.92rem;
+    }
+
+    .quick-point span {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    section {
+      margin-top: 28px;
+      padding: 28px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+    }
+
+    h2 {
+      margin-bottom: 16px;
+      font-size: clamp(1.45rem, 3vw, 2rem);
+      line-height: 1.18;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 1.05rem;
+    }
+
+    .section-lead {
+      max-width: 820px;
+      color: var(--muted);
+      font-size: 1.02rem;
+    }
+
+    .glance-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .signal-card {
+      display: grid;
+      gap: 10px;
+      min-height: 150px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+    }
+
+    .signal-icon,
+    .mini-icon {
+      display: inline-grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      color: #ffffff;
+      background: var(--blue);
+      font-weight: 850;
+      line-height: 1;
+    }
+
+    .signal-card:nth-child(2) .signal-icon {
+      background: var(--green);
+    }
+
+    .signal-card:nth-child(3) .signal-icon {
+      color: #2d2100;
+      background: var(--yellow);
+    }
+
+    .signal-card:nth-child(4) .signal-icon {
+      background: var(--red);
+    }
+
+    .signal-card p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .comparison {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .comparison-card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+    }
+
+    .comparison-card strong {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+
+    .bad {
+      border-color: #f3c8c4;
+      background: #fff7f6;
+    }
+
+    .good {
+      border-color: #b7dfc3;
+      background: #f4fbf6;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: #243244;
+      background: #f1f5f9;
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .pill::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--blue);
+    }
+
+    .pill.green::before {
+      background: var(--green);
+    }
+
+    .pill.yellow::before {
+      background: var(--yellow);
+    }
+
+    .pill.red::before {
+      background: var(--red);
+    }
+
+    .two-column {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+    }
+
+    .card p:last-child {
+      margin-bottom: 0;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 1.15rem;
+    }
+
+    li + li {
+      margin-top: 7px;
+    }
+
+    .fit-list {
+      display: grid;
+      gap: 10px;
+      margin: 18px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .fit-list li {
+      position: relative;
+      padding-left: 24px;
+      color: var(--muted);
+    }
+
+    .fit-list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.62em;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      background: var(--blue);
+    }
+
+    .fit-list li:nth-child(2)::before {
+      background: var(--green);
+    }
+
+    .fit-list li:nth-child(3)::before {
+      background: var(--yellow);
+    }
+
+    .fit-list li:nth-child(4)::before {
+      background: var(--red);
+    }
+
+    .architecture {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1.35fr 1.2fr 1fr;
+      gap: 14px;
+      margin-top: 22px;
+      padding: 16px;
+      border: 1px solid #cbd8e8;
+      border-radius: 18px;
+      background:
+        linear-gradient(90deg, rgba(26, 115, 232, 0.05), rgba(24, 128, 56, 0.05) 38%, rgba(251, 188, 4, 0.08) 68%, rgba(217, 48, 37, 0.04));
+    }
+
+    .lane {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+      min-height: 100%;
+    }
+
+    .lane-title {
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 850;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .arch-card {
+      position: relative;
+      display: grid;
+      gap: 8px;
+      min-height: 112px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 10px 25px rgba(31, 41, 55, 0.05);
+    }
+
+    .arch-card.core {
+      border-color: #aecbfa;
+      background: #f8fbff;
+    }
+
+    .arch-card.ai {
+      border-color: #bad7c4;
+      background: #f6fbf7;
+    }
+
+    .arch-card.data {
+      border-color: #ffe28a;
+      background: #fffdf3;
+    }
+
+    .arch-card.alert {
+      border-color: #f5b5af;
+      background: #fff8f7;
+    }
+
+    .arch-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .arch-head strong {
+      line-height: 1.2;
+    }
+
+    .arch-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .port-list {
+      display: grid;
+      gap: 7px;
+      margin-top: 2px;
+    }
+
+    .port {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: #eef4ff;
+      color: #334155;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .port span {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .connector-label {
+      display: grid;
+      place-items: center;
+      min-height: 36px;
+      margin: 8px 0;
+      border-top: 2px solid #9fb5d1;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .architecture-mobile-note {
+      display: none;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .stretch {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 14px;
+      align-items: center;
+      margin-top: 16px;
+      padding: 15px;
+      border: 1px dashed #b8c7dc;
+      border-radius: 12px;
+      background: #f9fbff;
+    }
+
+    .badge {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: #174ea6;
+      background: #e8f0fe;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .conversation-map {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-areas:
+        "memory agent user"
+        "alert goal risk";
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .map-card {
+      position: relative;
+      min-height: 132px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #ffffff;
+    }
+
+    .map-card::after {
+      content: "\2192";
+      position: absolute;
+      top: 50%;
+      right: -16px;
+      transform: translateY(-50%);
+      color: var(--blue);
+      font-size: 1.35rem;
+      font-weight: 900;
+    }
+
+    .map-card.alert::after {
+      content: "";
+    }
+
+    .map-card.user::after {
+      content: "\2193";
+      top: auto;
+      right: 50%;
+      bottom: -21px;
+      transform: translateX(50%);
+    }
+
+    .map-card.risk::after {
+      content: "\2190";
+      right: auto;
+      left: -16px;
+    }
+
+    .map-card.goal::after {
+      content: "\2191";
+      top: -20px;
+      right: 50%;
+      transform: translateX(50%);
+      color: var(--green);
+    }
+
+    .map-card.memory {
+      grid-area: memory;
+    }
+
+    .map-card.agent {
+      grid-area: agent;
+    }
+
+    .map-card.user {
+      grid-area: user;
+    }
+
+    .map-card.risk {
+      grid-area: risk;
+      border-color: #ffe28a;
+      background: #fffdf3;
+    }
+
+    .map-card.goal {
+      grid-area: goal;
+      border-color: #bad7c4;
+      background: #f6fbf7;
+    }
+
+    .map-card.alert {
+      grid-area: alert;
+      border-color: #f5b5af;
+      background: #fff8f7;
+    }
+
+    .map-card h3 {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 8px;
+    }
+
+    .map-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .call-state {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin: 16px 0 0;
+    }
+
+    .state-chip {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+    }
+
+    .state-chip span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .state-chip strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 0.98rem;
+      line-height: 1.2;
+    }
+
+    .scenario-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .scenario {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #ffffff;
+    }
+
+    .scenario .tag {
+      width: fit-content;
+      margin-bottom: 12px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      color: #0b57d0;
+      background: #e8f0fe;
+      font-size: 0.76rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .quote {
+      margin: 12px 0;
+      padding: 13px;
+      border-left: 4px solid var(--green);
+      border-radius: 8px;
+      background: #f4fbf6;
+      color: #203326;
+      font-size: 0.95rem;
+    }
+
+    .dialogue {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .bubble {
+      display: grid;
+      gap: 6px;
+      max-width: 760px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .bubble.ai {
+      border-left: 5px solid var(--green);
+      background: #f4fbf6;
+    }
+
+    .bubble.user {
+      justify-self: end;
+      border-right: 5px solid var(--blue);
+      background: #f8fbff;
+    }
+
+    .speaker {
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 850;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .jp {
+      color: #203326;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .translation {
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .result {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    .stack-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      padding: 0;
+      list-style: none;
+    }
+
+    .stack-list li {
+      display: grid;
+      grid-template-columns: 46px 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      color: var(--muted);
+      background: #ffffff;
+    }
+
+    .stack-list strong {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--text);
+    }
+
+    .logo-mark {
+      display: inline-grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      border-radius: 13px;
+      color: #ffffff;
+      background: var(--blue);
+      font-size: 0.75rem;
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .logo-gemini {
+      background: conic-gradient(from 180deg, #1a73e8, #7e57c2, #d93025, #fbbc04, #188038, #1a73e8);
+    }
+
+    .logo-cloud {
+      background: linear-gradient(135deg, #1a73e8 0 45%, #34a853 45% 70%, #fbbc04 70% 85%, #ea4335 85%);
+    }
+
+    .logo-db {
+      background: linear-gradient(180deg, #fbbc04, #f29900);
+      color: #2d2100;
+    }
+
+    .logo-react {
+      background: #111827;
+      color: #61dafb;
+      font-size: 1rem;
+    }
+
+    .logo-browser {
+      background: linear-gradient(135deg, #1a73e8, #60a5fa);
+    }
+
+    .logo-twilio {
+      background: #f22f46;
+    }
+
+    .logo-clock {
+      background: #64748b;
+    }
+
+    .logo-voice {
+      background: #188038;
+    }
+
+    .callout {
+      padding: 18px;
+      border: 1px solid #bfdbfe;
+      border-radius: 14px;
+      background: #eff6ff;
+    }
+
+    .callout strong {
+      color: #174ea6;
+    }
+
+    .footer-note {
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      text-align: center;
+    }
+
+    @media (max-width: 920px) {
+      .quick-points,
+      .glance-grid,
+      .card-grid,
+      .scenario-grid,
+      .call-state {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .two-column,
+      .comparison {
+        grid-template-columns: 1fr;
+      }
+
+      .architecture {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 720px) {
+      main {
+        width: min(100% - 28px, 1100px);
+        padding: 22px 0 44px;
+      }
+
+      header,
+      section {
+        padding: 20px;
+        border-radius: 14px;
+      }
+
+      h1 {
+        font-size: clamp(2.08rem, 12vw, 3.3rem);
+      }
+
+      h2 {
+        font-size: 1.45rem;
+      }
+
+      .quick-points,
+      .glance-grid,
+      .card-grid,
+      .scenario-grid,
+      .stack-list,
+      .call-state {
+        grid-template-columns: 1fr;
+      }
+
+      .architecture {
+        grid-template-columns: 1fr;
+        padding: 12px;
+      }
+
+      .connector-label {
+        min-height: 28px;
+        border-top: 0;
+        border-left: 2px solid #9fb5d1;
+        padding-left: 12px;
+        place-items: start;
+        text-align: left;
+      }
+
+      .architecture-mobile-note {
+        display: block;
+      }
+
+      .conversation-map {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "memory"
+          "agent"
+          "user"
+          "risk"
+          "goal"
+          "alert";
+      }
+
+      .map-card {
+        min-height: auto;
+      }
+
+      .map-card::after,
+      .map-card.goal::after {
+        content: "\2193";
+        top: auto;
+        right: 50%;
+        bottom: -19px;
+        transform: translateX(50%);
+        color: var(--blue);
+      }
+
+      .map-card.alert::after {
+        content: "";
+      }
+
+      .bubble {
+        max-width: 100%;
+      }
+
+      .bubble.user {
+        justify-self: stretch;
+      }
+
+      .stretch {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">Gemini Tokyo Hackathon</div>
+      <h1>AI Welfare-Check Voice Companion</h1>
+      <p class="subtitle">
+        A Japanese voice agent for elderly people living alone that remembers prior conversations,
+        detects risk in real time, adapts naturally, and alerts caregivers only when evidence warrants it.
+      </p>
+      <div class="quick-points" aria-label="Core plan highlights">
+        <div class="quick-point">
+          <strong>Not an IVR</strong>
+          <span>Conversation is adaptive, not a fixed questionnaire.</span>
+        </div>
+        <div class="quick-point">
+          <strong>Memory-enabled</strong>
+          <span>Prior pain, mood, habits, and context shape each call.</span>
+        </div>
+        <div class="quick-point">
+          <strong>Realtime risk</strong>
+          <span>Risk is evaluated during the call, not only afterward.</span>
+        </div>
+        <div class="quick-point">
+          <strong>Evidence-based alerts</strong>
+          <span>Caregivers see why an alert was created.</span>
+        </div>
+      </div>
+    </header>
+
+    <section aria-labelledby="fit-title">
+      <h2 id="fit-title">Why This Fits The Hackathon</h2>
+      <p class="section-lead">
+        The project uses Gemini for live voice reasoning and Google Cloud for deployment, state,
+        and a working demo. It is locally relevant to Japan's aging population and easy to explain
+        in a short live presentation.
+      </p>
+      <div class="glance-grid">
+        <div class="signal-card">
+          <span class="signal-icon">JP</span>
+          <h3>Japan-Specific Need</h3>
+          <p>Elderly people living alone need consistent welfare checks without app friction.</p>
+        </div>
+        <div class="signal-card">
+          <span class="signal-icon">AI</span>
+          <h3>Strong Gemini Fit</h3>
+          <p>Voice, memory, tool use, reasoning, and structured risk extraction all matter.</p>
+        </div>
+        <div class="signal-card">
+          <span class="signal-icon">2m</span>
+          <h3>Demo-Friendly</h3>
+          <p>One elder, one caregiver, one live call, one dashboard update.</p>
+        </div>
+        <div class="signal-card">
+          <span class="signal-icon">!</span>
+          <h3>Clear Outcome</h3>
+          <p>A fall and dizziness case creates an evidence-backed caregiver alert.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="goal-title">
+      <h2 id="goal-title">Product Goal And Differentiator</h2>
+      <div class="two-column">
+        <div class="card">
+          <h3>Goal</h3>
+          <p>
+            Help families and caregivers notice changes in well-being earlier through short,
+            natural, recurring voice conversations.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Differentiator</h3>
+          <p>
+            The agent builds longitudinal understanding. It knows who it is talking to, what
+            was previously mentioned, what risk signals matter now, and when enough information
+            has been gathered.
+          </p>
+        </div>
+      </div>
+      <div class="comparison">
+        <div class="comparison-card bad">
+          <strong>Traditional IVR / Checklist</strong>
+          <ul>
+            <li>Same questions every day.</li>
+            <li>No memory of prior concerns.</li>
+            <li>Escalation feels rule-based.</li>
+          </ul>
+        </div>
+        <div class="comparison-card good">
+          <strong>Memory-Enabled Welfare Agent</strong>
+          <ul>
+            <li>Starts from the person's history and habits.</li>
+            <li>Adapts based on weak signals during the call.</li>
+            <li>Escalates with evidence and context.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="callout" style="margin-top: 16px;">
+        <strong>Positioning:</strong>
+        AI well-being and welfare-check companion. Not an AI doctor, not a diagnosis assistant,
+        and not a replacement for emergency services.
+      </div>
+    </section>
+
+    <section aria-labelledby="diagram-title">
+      <h2 id="diagram-title">High-Level System Diagram</h2>
+      <p class="section-lead">
+        The primary demo path uses browser voice for reliability. The phone-call path is a stretch
+        integration that can feed into the same Cloud Run backend.
+      </p>
+
+      <div class="architecture" aria-label="High-level system architecture">
+        <div class="lane">
+          <div class="lane-title">Channels</div>
+          <div class="arch-card core">
+            <div class="arch-head">
+              <span class="logo-mark logo-browser">WEB</span>
+              <strong>Browser Voice</strong>
+            </div>
+            <p>Primary reliable demo path for Japanese speech.</p>
+          </div>
+          <div class="arch-card">
+            <div class="arch-head">
+              <span class="logo-mark logo-twilio">TW</span>
+              <strong>Twilio Voice</strong>
+            </div>
+            <p>Optional real-phone stretch path into the same backend.</p>
+          </div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-title">Cloud Run Orchestration</div>
+          <div class="arch-card core">
+            <div class="arch-head">
+              <span class="logo-mark logo-cloud">GCP</span>
+              <strong>Session Backend</strong>
+            </div>
+            <div class="port-list">
+              <div class="port">WebSocket audio <span>in/out</span></div>
+              <div class="port">Agent tools <span>calls</span></div>
+              <div class="port">Dashboard API <span>live state</span></div>
+            </div>
+          </div>
+          <div class="connector-label">Streams audio, calls tools, updates state</div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-title">Gemini Intelligence</div>
+          <div class="arch-card ai">
+            <div class="arch-head">
+              <span class="logo-mark logo-gemini">G</span>
+              <strong>Gemini Live API</strong>
+            </div>
+            <p>Natural Japanese voice agent with memory-aware tool use.</p>
+          </div>
+          <div class="arch-card ai">
+            <div class="arch-head">
+              <span class="logo-mark logo-gemini">G</span>
+              <strong>Realtime Risk Evaluator</strong>
+            </div>
+            <p>Extracts facts, uncertainty, risk level, and next goal during the call.</p>
+          </div>
+        </div>
+
+        <div class="lane">
+          <div class="lane-title">State And Surfaces</div>
+          <div class="arch-card data">
+            <div class="arch-head">
+              <span class="logo-mark logo-db">DB</span>
+              <strong>Firestore</strong>
+            </div>
+            <p>Profile, memories, call state, summaries, and alerts.</p>
+          </div>
+          <div class="arch-card alert">
+            <div class="arch-head">
+              <span class="logo-mark logo-react">UI</span>
+              <strong>Caregiver Dashboard</strong>
+            </div>
+            <p>English live updates with risk, evidence, and suggested action.</p>
+          </div>
+        </div>
+      </div>
+      <p class="architecture-mobile-note">On mobile, the same architecture stacks from channel to backend to Gemini intelligence to dashboard.</p>
+
+      <div class="stretch">
+        <span class="badge">Optional Stretch</span>
+        <p style="margin: 0;">
+          Twilio Voice / Media Streams can connect real phone calls into Cloud Run if setup is fast.
+          The demo should not depend on this path.
+        </p>
+      </div>
+    </section>
+
+    <section aria-labelledby="stack-title">
+      <h2 id="stack-title">Tech Stack And Tools</h2>
+      <ul class="stack-list">
+        <li><span class="logo-mark logo-gemini">G</span><div><strong>Gemini Live API</strong> Realtime Japanese voice conversation and function calling.</div></li>
+        <li><span class="logo-mark logo-gemini">G</span><div><strong>Gemini Flash / Pro</strong> Realtime structured risk extraction and post-call summary.</div></li>
+        <li><span class="logo-mark logo-cloud">RUN</span><div><strong>Cloud Run</strong> Deployed backend for hackathon eligibility and demo reliability.</div></li>
+        <li><span class="logo-mark logo-db">FS</span><div><strong>Firestore</strong> Profile, memory, call state, summaries, and alerts.</div></li>
+        <li><span class="logo-mark logo-react">UI</span><div><strong>Next.js or React</strong> Caregiver dashboard with English live updates.</div></li>
+        <li><span class="logo-mark logo-browser">MIC</span><div><strong>Browser voice</strong> Primary demo mode; no phone number dependency.</div></li>
+        <li><span class="logo-mark logo-twilio">TW</span><div><strong>Twilio Voice</strong> Optional phone-call stretch, only if setup is quick.</div></li>
+        <li><span class="logo-mark logo-clock">SCH</span><div><strong>Cloud Scheduler</strong> Optional scheduled call trigger; manual trigger is enough.</div></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="flow-title">
+      <h2 id="flow-title">Realtime Adaptive Conversation Flow</h2>
+      <p class="section-lead">
+        The agent is driven by conversation goals, not fixed questions. After each important user
+        turn, the risk evaluator updates known facts, uncertainty, risk level, and the next best
+        conversation goal.
+      </p>
+
+      <div class="conversation-map" aria-label="Realtime adaptive conversation loop">
+        <div class="map-card memory">
+          <h3><span class="mini-icon">M</span> Memory Context</h3>
+          <p>Loads profile, prior pain, mood trend, habits, and last known concerns.</p>
+        </div>
+        <div class="map-card agent">
+          <h3><span class="mini-icon logo-voice">V</span> Voice Agent</h3>
+          <p>Starts naturally in Japanese and asks one relevant question.</p>
+        </div>
+        <div class="map-card user">
+          <h3><span class="mini-icon logo-browser">U</span> User Answer</h3>
+          <p>Speech is interpreted for facts, tone, weak signals, and missing context.</p>
+        </div>
+        <div class="map-card goal">
+          <h3><span class="mini-icon logo-voice">N</span> Next Goal</h3>
+          <p>Planner decides whether to reassure, clarify, follow up, or escalate.</p>
+        </div>
+        <div class="map-card risk">
+          <h3><span class="mini-icon logo-db">R</span> Risk State</h3>
+          <p>Risk score, evidence, uncertainty, and open questions update during the call.</p>
+        </div>
+        <div class="map-card alert">
+          <h3><span class="mini-icon logo-twilio">!</span> Alert Surface</h3>
+          <p>Only creates a caregiver alert when the evidence threshold is met.</p>
+        </div>
+      </div>
+
+      <div class="call-state" aria-label="Example live call state">
+        <div class="state-chip"><span>Known fact</span><strong>Fell yesterday</strong></div>
+        <div class="state-chip"><span>Risk signal</span><strong>Dizzy when standing</strong></div>
+        <div class="state-chip"><span>Uncertainty</span><strong>Injury severity</strong></div>
+        <div class="state-chip"><span>Next goal</span><strong>Clarify safety gently</strong></div>
+      </div>
+
+      <div class="dialogue" aria-label="Japanese demo conversation with English translations">
+        <div class="bubble ai">
+          <span class="speaker">AI</span>
+          <span class="jp" lang="ja">先週、膝が痛いとおっしゃっていましたが、その後どうですか？</span>
+          <span class="translation">Last week you mentioned your knee was hurting. How has it been since then?</span>
+        </div>
+        <div class="bubble user">
+          <span class="speaker">Elder</span>
+          <span class="jp" lang="ja">昨日ちょっと転んで、今日は立つとふらつきます。</span>
+          <span class="translation">I fell a little yesterday, and today I feel unsteady when I stand.</span>
+        </div>
+        <div class="bubble ai">
+          <span class="speaker">AI</span>
+          <span class="jp" lang="ja">それは心配ですね。今はお一人ですか？けがや痛みはありますか？</span>
+          <span class="translation">That is concerning. Are you alone right now? Do you have any injury or pain?</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="scenarios-title">
+      <h2 id="scenarios-title">Demo Scenarios</h2>
+      <div class="scenario-grid">
+        <article class="scenario">
+          <span class="tag">Scenario 1</span>
+          <h3>Normal Personalized Check-In</h3>
+          <p>Memory says Sato-san had knee pain last week and sounded tired yesterday.</p>
+          <div class="quote">
+            <div class="jp" lang="ja">今日はまあまあです。膝は少し良くなりました。</div>
+            <div class="translation">I am doing okay today. My knee is a little better.</div>
+          </div>
+          <p class="result">Expected result: no alert, knee memory updated, dashboard shows stable.</p>
+        </article>
+
+        <article class="scenario">
+          <span class="tag">Scenario 2</span>
+          <h3>Subtle Loneliness / Mood Decline</h3>
+          <p>User does not report a medical issue, but hints at isolation.</p>
+          <div class="quote">
+            <div class="jp" lang="ja">別に大丈夫です。ただ、最近あまり人と話していません。</div>
+            <div class="translation">I am not really in trouble. I just have not talked to people much lately.</div>
+          </div>
+          <p class="result">Expected result: moderate concern, soft follow-up suggestion, no urgent alert.</p>
+        </article>
+
+        <article class="scenario">
+          <span class="tag">Scenario 3</span>
+          <h3>Fall / Dizziness Escalation</h3>
+          <p>The strongest live demo because it shows memory, adaptive questioning, and escalation.</p>
+          <div class="quote">
+            <div class="jp" lang="ja">昨日ちょっと転んで、今日は立つとふらつきます。</div>
+            <div class="translation">I fell a little yesterday, and today I feel unsteady when I stand.</div>
+          </div>
+          <p class="result">Expected result: alert for daughter with evidence: fall, dizziness, alone, pain.</p>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="assumptions-title">
+      <h2 id="assumptions-title">Assumptions And Defaults</h2>
+      <p class="section-lead">
+        These defaults keep the hackathon build focused on a polished live demo instead of a broad
+        production platform.
+      </p>
+      <div class="card-grid">
+        <div class="card">
+          <h3><span class="mini-icon">P</span> Persona</h3>
+          <p>Adult child monitoring an elderly parent remotely.</p>
+        </div>
+        <div class="card">
+          <h3><span class="mini-icon logo-voice">JA</span> Languages</h3>
+          <p>Japanese elder conversation. English dashboard and demo explanation.</p>
+        </div>
+        <div class="card">
+          <h3><span class="mini-icon logo-browser">D</span> Demo Priority</h3>
+          <p>Browser voice first. Real phone call only as stretch scope.</p>
+        </div>
+        <div class="card">
+          <h3><span class="mini-icon logo-twilio">!</span> Escalation</h3>
+          <p>Evidence-based caregiver alert, not medical diagnosis.</p>
+        </div>
+        <div class="card">
+          <h3><span class="mini-icon logo-gemini">G</span> Success Criteria</h3>
+          <p>Judges see the conversation adapt in real time and the dashboard update live.</p>
+        </div>
+        <div class="card">
+          <h3><span class="mini-icon logo-clock">1D</span> Build Constraint</h3>
+          <p>One-day hackathon MVP with a focused, reliable two-minute demo.</p>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer-note">
+      Standalone local HTML plan. No external libraries, assets, or build step required.
+    </p>
+  </main>
+</body>
+</html>
