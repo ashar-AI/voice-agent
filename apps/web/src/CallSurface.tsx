@@ -77,6 +77,7 @@ const surfaceCopy: Record<
     eventsTitle: string;
     eventsPending: string;
     eventsEmpty: string;
+    dashboardButton: string;
     closeLabel: string;
     notLiveError: string;
     startEvent: string;
@@ -117,6 +118,7 @@ const surfaceCopy: Record<
     eventsTitle: "接続アクティビティ",
     eventsPending: "通話を始めると表示されます",
     eventsEmpty: "まだアクティビティはありません。",
+    dashboardButton: "ダッシュボードへ",
     closeLabel: "通話画面を閉じる",
     notLiveError: "音声エージェントにまだ接続されていません。",
     startEvent: "ライブセッションを開始しました。",
@@ -156,6 +158,7 @@ const surfaceCopy: Record<
     eventsTitle: "Connection activity",
     eventsPending: "Activity appears after the call starts",
     eventsEmpty: "No activity yet.",
+    dashboardButton: "Go to dashboard",
     closeLabel: "Close call surface",
     notLiveError: "The voice agent is not connected yet.",
     startEvent: "Live session started.",
@@ -566,8 +569,13 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
   }
 
   function handleCloseSurface() {
-    activeRunRef.current += 1;
+    const sessionId = bootstrap?.session.sessionId;
+    const runId = activeRunRef.current + 1;
+    activeRunRef.current = runId;
     closeCurrentClient("silent");
+    if (sessionId) {
+      void completeBackendSessionIfNeeded(runId, sessionId);
+    }
     onClose?.();
   }
 
@@ -816,9 +824,15 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
               <span>{currentStatusCopy.label}</span>
             </div>
             {onClose ? (
-              <button type="button" style={styles.iconButton} onClick={handleCloseSurface} aria-label={copy.closeLabel}>
-                <Icon name="close" />
-              </button>
+              <>
+                <button type="button" style={styles.dashboardButton} onClick={handleCloseSurface}>
+                  <Icon name="dashboard" />
+                  <span>{copy.dashboardButton}</span>
+                </button>
+                <button type="button" style={styles.iconButton} onClick={handleCloseSurface} aria-label={copy.closeLabel}>
+                  <Icon name="close" />
+                </button>
+              </>
             ) : null}
           </div>
         </header>
@@ -1431,6 +1445,22 @@ const styles: Record<string, CSSProperties> = {
     width: 10,
     height: 10,
     borderRadius: 999
+  },
+  dashboardButton: {
+    minHeight: 44,
+    border: "1px solid #d8ddd2",
+    borderRadius: 999,
+    background: "rgba(255, 255, 255, 0.82)",
+    color: "#172019",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: "0 14px",
+    fontSize: 14,
+    fontWeight: 850,
+    cursor: "pointer",
+    boxShadow: "0 8px 22px rgba(61, 74, 54, 0.08)"
   },
   iconButton: {
     width: 44,
