@@ -31,9 +31,11 @@ packages/contracts
 GET  /health
 GET  /api/scenarios
 GET  /api/elders/:elderId/snapshot
+GET  /api/elders/:elderId/events
 POST /api/demo/reset
 POST /api/scenarios/start
 POST /api/conversation/turn
+POST /api/calls/:sessionId/complete
 ```
 
 ### Start Scenario
@@ -80,9 +82,21 @@ Response:
 }
 ```
 
+### Complete Call
+
+Response:
+
+```json
+{
+  "session": { "...": "CallSession" },
+  "summary": { "...": "CallSummary" },
+  "snapshot": { "...": "DashboardSnapshot" }
+}
+```
+
 ## Future Realtime Event Contract
 
-The planned push channel should use the existing `DashboardEvent` schema:
+The push channel uses the existing `DashboardEvent` schema over Server-Sent Events:
 
 ```text
 snapshot.updated
@@ -91,7 +105,7 @@ alert.created
 call.completed
 ```
 
-This lets the dashboard move from polling/manual updates to SSE or WebSocket without changing its domain model.
+The dashboard still accepts direct HTTP responses, so the demo keeps working if SSE is unavailable.
 
 ## Future Agent Tool Contract
 

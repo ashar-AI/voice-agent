@@ -6,6 +6,8 @@ import type {
 } from "@voice-agent/contracts";
 import { useEffect, useMemo, useState } from "react";
 import {
+  completeCall,
+  createDashboardEventSource,
   getScenarios,
   getSnapshot,
   resetDemo,
@@ -31,6 +33,7 @@ export function App() {
   const [customTextEn, setCustomTextEn] = useState("");
   const [isBusy, setIsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
 
   const selectedScenario = useMemo(
     () => scenarios.find((scenario) => scenario.scenarioId === selectedScenarioId),
@@ -60,7 +63,22 @@ export function App() {
     }
 
     void load();
-  }, [selectedScenarioId]);
+  }, []);
+
+  useEffect(() => {
+    const source = createDashboardEventSource(
+      ELDER_ID,
+      (event) => {
+        setSnapshot(event.payload);
+        setIsRealtimeConnected(true);
+      },
+      () => setIsRealtimeConnected(false)
+    );
+
+    source.onopen = () => setIsRealtimeConnected(true);
+
+    return () => source.close();
+  }, []);
 
   function selectScenario(scenarioId: ScenarioId) {
     const scenario = scenarios.find((item) => item.scenarioId === scenarioId);
@@ -69,7 +87,7 @@ export function App() {
     setCustomTextEn(scenario?.elderLineEn ?? "");
   }
 
-  async function runScenario() {
+  async function startSelectedCall() {
     if (!selectedScenario) {
       return;
     }
@@ -79,15 +97,56 @@ export function App() {
 
     try {
       const started = await startScenario(ELDER_ID, selectedScenario.scenarioId);
+      setSnapshot(started.snapshot);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Call start failed");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function sendElderResponse() {
+    const activeSession = snapshot?.session?.status === "active" ? snapshot.session : undefined;
+
+    if (!activeSession) {
+      setError("Start a call before sending an elder response.");
+      return;
+    }
+
+    setIsBusy(true);
+    setError(null);
+
+    try {
       const response = await sendConversationTurn({
         elderId: ELDER_ID,
-        sessionId: started.session.sessionId,
+        sessionId: activeSession.sessionId,
         textJa: customTextJa,
         textEn: customTextEn
       });
       setSnapshot(response.snapshot);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : "Scenario failed");
+      setError(nextError instanceof Error ? nextError.message : "Conversation turn failed");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
+  async function completeActiveCall() {
+    const activeSession = snapshot?.session?.status === "active" ? snapshot.session : undefined;
+
+    if (!activeSession) {
+      setError("There is no active call to complete.");
+      return;
+    }
+
+    setIsBusy(true);
+    setError(null);
+
+    try {
+      const response = await completeCall(activeSession.sessionId);
+      setSnapshot(response.snapshot);
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Call completion failed");
     } finally {
       setIsBusy(false);
     }
@@ -115,6 +174,7 @@ export function App() {
   }
 
   const activeAlert = snapshot.alerts[0];
+  const activeSession = snapshot.session?.status === "active" ? snapshot.session : undefined;
 
   return (
     <main className="shell">
@@ -126,6 +186,10 @@ export function App() {
             Memory-aware Japanese check-in agent with realtime risk state and
             evidence-based caregiver alerts.
           </p>
+          <div className="status-row">
+            <span>{snapshot.session ? `Call ${snapshot.session.status}` : "No active call"}</span>
+            <span>{isRealtimeConnected ? "Realtime updates connected" : "Realtime fallback: HTTP response"}</span>
+          </div>
         </div>
         <div className={`risk-meter risk-${snapshot.riskState.riskLevel}`}>
           <span>Risk</span>
@@ -145,8 +209,8 @@ export function App() {
       <section className="panel">
         <div className="section-title">
           <div>
-            <h2>Demo Scenarios</h2>
-            <p>Choose a planned case, then run the elder line through the shared API contract.</p>
+            <h2>Turn-by-Turn Demo</h2>
+            <p>Choose a planned case, start the call, send the elder response, then watch risk and alert state update.</p>
           </div>
           <button className="secondary" disabled={isBusy} onClick={() => void reset()}>
             Reset
@@ -190,14 +254,25 @@ export function App() {
           </label>
         </div>
 
-        <button className="primary" disabled={isBusy || !customTextJa} onClick={() => void runScenario()}>
-          {isBusy ? "Running..." : "Run Scenario"}
-        </button>
+        <div className="button-row">
+          <button className="primary" disabled={isBusy || !selectedScenario} onClick={() => void startSelectedCall()}>
+            {isBusy ? "Working..." : "1. Start Call"}
+          </button>
+          <button className="primary" disabled={isBusy || !customTextJa || !activeSession} onClick={() => void sendElderResponse()}>
+            2. Send Elder Response
+          </button>
+          <button className="secondary" disabled={isBusy || !activeSession} onClick={() => void completeActiveCall()}>
+            3. Complete Call
+          </button>
+        </div>
       </section>
 
       <section className="grid detail-grid">
         <TranscriptCard snapshot={snapshot} />
-        <MemoryCard snapshot={snapshot} />
+        <div className="side-stack">
+          <MemoryCard snapshot={snapshot} />
+          <SummaryCard snapshot={snapshot} />
+        </div>
       </section>
     </main>
   );
@@ -227,6 +302,12 @@ function RiskCard({ snapshot }: { snapshot: DashboardSnapshot }) {
           <span className="chip" key={fact}>{fact}</span>
         ))}
       </div>
+      {snapshot.riskState.uncertainties.length > 0 ? (
+        <div className="uncertainty-list">
+          <strong>Open questions</strong>
+          {snapshot.riskState.uncertainties.map((item) => <span key={item}>{item}</span>)}
+        </div>
+      ) : null}
       <p className="muted">{snapshot.riskState.recommendedAction}</p>
     </article>
   );
@@ -290,6 +371,29 @@ function MemoryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
             <span>{memory.importance} importance</span>
           </div>
         ))}
+      </div>
+    </article>
+  );
+}
+
+function SummaryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+  if (!snapshot.latestSummary) {
+    return (
+      <article className="card">
+        <span className="card-kicker">Post-call summary</span>
+        <h2>Pending</h2>
+        <p className="muted">Complete the call to create a final summary and follow-up recommendation.</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="card">
+      <span className="card-kicker">Post-call summary</span>
+      <h2>{snapshot.latestSummary.summary}</h2>
+      <p className="muted">{snapshot.latestSummary.recommendedFollowUp}</p>
+      <div className="chip-row">
+        {snapshot.latestSummary.keyEvidence.map((item) => <span className="chip" key={item}>{item}</span>)}
       </div>
     </article>
   );

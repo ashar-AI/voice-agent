@@ -27,7 +27,7 @@ packages/contracts
   Shared Zod schemas and TypeScript types for all service communication.
 
 docs
-  Architecture, service contracts, and demo scenarios.
+  Architecture, service contracts, deployment notes, and demo scenarios.
 ```
 
 ## Local Development
@@ -63,6 +63,15 @@ Validate the workspace:
 npm run typecheck
 npm run build
 ```
+
+Run the current demo flow:
+
+1. Open the dashboard.
+2. Pick a planned scenario.
+3. Click `1. Start Call`.
+4. Click `2. Send Elder Response`.
+5. Watch the risk state, transcript, alert, and memory timeline update.
+6. Click `3. Complete Call` to create the post-call summary.
 
 ## Proposed Stack
 

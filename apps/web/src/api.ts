@@ -1,9 +1,13 @@
 import {
+  CompleteCallResponseSchema,
   ConversationTurnResponseSchema,
+  DashboardEventSchema,
   DashboardSnapshotSchema,
   DemoScenarioSchema,
   StartScenarioResponseSchema,
+  type CompleteCallResponse,
   type ConversationTurnResponse,
+  type DashboardEvent,
   type DashboardSnapshot,
   type DemoScenario,
   type ScenarioId,
@@ -11,7 +15,7 @@ import {
 } from "@voice-agent/contracts";
 import { z } from "zod";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
 async function fetchContract<T>(
   path: string,
@@ -70,4 +74,32 @@ export async function sendConversationTurn(input: {
     method: "POST",
     body: JSON.stringify(input)
   });
+}
+
+export async function completeCall(sessionId: string): Promise<CompleteCallResponse> {
+  return fetchContract(`/api/calls/${sessionId}/complete`, CompleteCallResponseSchema, {
+    method: "POST",
+    body: JSON.stringify({})
+  });
+}
+
+export function createDashboardEventSource(
+  elderId: string,
+  onEvent: (event: DashboardEvent) => void,
+  onError: () => void
+): EventSource {
+  const source = new EventSource(`${API_BASE_URL}/api/elders/${elderId}/events`);
+
+  source.onmessage = (message) => {
+    const parsed = DashboardEventSchema.safeParse(JSON.parse(message.data));
+    if (parsed.success) {
+      onEvent(parsed.data);
+    }
+  };
+
+  source.onerror = () => {
+    onError();
+  };
+
+  return source;
 }

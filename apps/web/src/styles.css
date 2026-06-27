@@ -71,6 +71,22 @@ h2 {
   color: #64748b;
 }
 
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.status-row span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #174ea6;
+  background: #e8f0fe;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .risk-meter {
   display: grid;
   place-items: center;
@@ -193,6 +209,28 @@ h2 {
   font-weight: 750;
 }
 
+.uncertainty-list {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #ffe28a;
+  border-radius: 12px;
+  background: #fffdf3;
+}
+
+.uncertainty-list strong {
+  color: #7a5300;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.uncertainty-list span {
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
 .section-title {
   display: flex;
   justify-content: space-between;
@@ -286,6 +324,17 @@ textarea {
   opacity: 0.55;
 }
 
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.side-stack {
+  display: grid;
+  gap: 14px;
+}
+
 .turn-list,
 .memory-list {
   display: grid;
@@ -333,8 +382,13 @@ textarea {
   .overview-grid,
   .detail-grid,
   .input-row,
-  .scenario-grid {
+  .scenario-grid,
+  .button-row {
     grid-template-columns: 1fr;
+  }
+
+  .button-row {
+    display: grid;
   }
 
   .risk-meter {

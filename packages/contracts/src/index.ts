@@ -85,6 +85,19 @@ export const AlertRecordSchema = z.object({
 });
 export type AlertRecord = z.infer<typeof AlertRecordSchema>;
 
+export const CallSummarySchema = z.object({
+  id: z.string(),
+  elderId: z.string(),
+  sessionId: z.string(),
+  summary: z.string(),
+  riskLevel: RiskLevelSchema,
+  riskScore: z.number().int().min(0).max(100),
+  keyEvidence: z.array(z.string()),
+  recommendedFollowUp: z.string(),
+  createdAt: z.string()
+});
+export type CallSummary = z.infer<typeof CallSummarySchema>;
+
 export const CallSessionSchema = z.object({
   sessionId: z.string(),
   elderId: z.string(),
@@ -102,6 +115,7 @@ export const DashboardSnapshotSchema = z.object({
   transcript: z.array(TranscriptTurnSchema),
   riskState: RiskStateSchema,
   alerts: z.array(AlertRecordSchema),
+  latestSummary: CallSummarySchema.optional(),
   updatedAt: z.string()
 });
 export type DashboardSnapshot = z.infer<typeof DashboardSnapshotSchema>;
@@ -143,6 +157,13 @@ export const ConversationTurnResponseSchema = z.object({
   snapshot: DashboardSnapshotSchema
 });
 export type ConversationTurnResponse = z.infer<typeof ConversationTurnResponseSchema>;
+
+export const CompleteCallResponseSchema = z.object({
+  session: CallSessionSchema,
+  summary: CallSummarySchema,
+  snapshot: DashboardSnapshotSchema
+});
+export type CompleteCallResponse = z.infer<typeof CompleteCallResponseSchema>;
 
 export const DashboardEventSchema = z.object({
   eventId: z.string(),

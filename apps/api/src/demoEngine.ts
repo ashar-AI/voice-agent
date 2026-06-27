@@ -1,12 +1,15 @@
 import type {
   AlertRecord,
+  CallSummary,
   CallSession,
   ConversationTurnRequest,
   ConversationTurnResponse,
+  DashboardEvent,
   DashboardSnapshot,
   MemoryItem,
   RiskState,
   ScenarioId,
+  CompleteCallResponse,
   StartScenarioRequest,
   StartScenarioResponse,
   TranscriptTurn
@@ -18,6 +21,7 @@ import {
   demoProfile,
   getScenario
 } from "./demoData.js";
+import { evaluateUserTurn } from "./riskEvaluator.js";
 
 type DemoState = {
   memories: MemoryItem[];
@@ -25,9 +29,11 @@ type DemoState = {
   transcript: TranscriptTurn[];
   riskState: RiskState;
   alerts: AlertRecord[];
+  latestSummary?: CallSummary;
 };
 
 const state: DemoState = createResetState();
+const listeners = new Set<(event: DashboardEvent) => void>();
 
 function createResetState(): DemoState {
   return {
@@ -60,6 +66,14 @@ function transcriptTurn(
   };
 }
 
+function materializeTranscriptTurn(turn: Omit<TranscriptTurn, "id" | "timestamp">): TranscriptTurn {
+  return {
+    ...turn,
+    id: id("turn"),
+    timestamp: now()
+  };
+}
+
 function snapshot(): DashboardSnapshot {
   return {
     profile: demoProfile,
@@ -68,8 +82,32 @@ function snapshot(): DashboardSnapshot {
     transcript: state.transcript,
     riskState: state.riskState,
     alerts: state.alerts,
+    latestSummary: state.latestSummary,
     updatedAt: now()
   };
+}
+
+function emit(eventType: DashboardEvent["eventType"]) {
+  const currentSnapshot = snapshot();
+  const event: DashboardEvent = {
+    eventId: id("event"),
+    eventType,
+    elderId: DEMO_ELDER_ID,
+    sessionId: state.session?.sessionId,
+    payload: currentSnapshot,
+    emittedAt: now()
+  };
+
+  for (const listener of listeners) {
+    listener(event);
+  }
+}
+
+export function subscribeDashboardEvents(
+  listener: (event: DashboardEvent) => void
+): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 export function resetDemoState(): DashboardSnapshot {
@@ -79,7 +117,10 @@ export function resetDemoState(): DashboardSnapshot {
   state.transcript = next.transcript;
   state.riskState = next.riskState;
   state.alerts = next.alerts;
-  return snapshot();
+  state.latestSummary = undefined;
+  const currentSnapshot = snapshot();
+  emit("snapshot.updated");
+  return currentSnapshot;
 }
 
 export function getDashboardSnapshot(): DashboardSnapshot {
@@ -104,6 +145,7 @@ export function startScenario(input: StartScenarioRequest): StartScenarioRespons
   const agentOpening = createOpeningTurn(input.scenarioId);
   state.session = session;
   state.transcript = [agentOpening];
+  emit("snapshot.updated");
 
   return {
     session,
@@ -122,26 +164,83 @@ export function handleConversationTurn(
   const elderTurn = transcriptTurn("elder", input.textJa, input.textEn);
   state.transcript.push(elderTurn);
 
-  const { agentTurn, riskState, newMemory, alert } = evaluateTurn(
-    state.session.scenarioId,
-    input
-  );
+  const evaluation = evaluateUserTurn({
+    elderId: input.elderId,
+    textJa: input.textJa,
+    textEn: input.textEn,
+    profile: demoProfile,
+    memories: state.memories,
+    previousRiskState: state.riskState,
+    createId: id,
+    now
+  });
 
-  state.riskState = riskState;
+  state.riskState = evaluation.riskState;
 
-  if (newMemory) {
-    state.memories = [newMemory, ...state.memories];
+  if (evaluation.newMemory) {
+    state.memories = [
+      {
+        ...evaluation.newMemory,
+        id: id("mem"),
+        observedAt: now()
+      },
+      ...state.memories
+    ];
   }
 
-  if (alert && !state.alerts.some((item) => item.title === alert.title)) {
-    state.alerts = [alert, ...state.alerts];
+  if (evaluation.alert && !state.alerts.some((item) => item.title === evaluation.alert?.title)) {
+    state.alerts = [
+      {
+        ...evaluation.alert,
+        id: id("alert"),
+        createdAt: now(),
+        acknowledged: false
+      },
+      ...state.alerts
+    ];
   }
 
+  const agentTurn = materializeTranscriptTurn(evaluation.agentTurn);
   state.transcript.push(agentTurn);
+  emit(state.riskState.alertRequired ? "alert.created" : "risk.updated");
 
   return {
     elderTurn,
     agentTurn,
+    snapshot: snapshot()
+  };
+}
+
+export function completeCallSession(sessionId: string): CompleteCallResponse {
+  if (!state.session || state.session.sessionId !== sessionId) {
+    throw new Error("No active matching session");
+  }
+
+  const completedSession: CallSession = {
+    ...state.session,
+    status: "completed",
+    completedAt: now()
+  };
+
+  const summary: CallSummary = {
+    id: id("summary"),
+    elderId: completedSession.elderId,
+    sessionId: completedSession.sessionId,
+    summary: createSummaryText(),
+    riskLevel: state.riskState.riskLevel,
+    riskScore: state.riskState.riskScore,
+    keyEvidence: state.riskState.knownFacts,
+    recommendedFollowUp: state.riskState.recommendedAction,
+    createdAt: now()
+  };
+
+  state.session = completedSession;
+  state.latestSummary = summary;
+  emit("call.completed");
+
+  return {
+    session: completedSession,
+    summary,
     snapshot: snapshot()
   };
 }
@@ -164,121 +263,14 @@ function createOpeningTurn(scenarioId: ScenarioId): TranscriptTurn {
   );
 }
 
-function evaluateTurn(
-  scenarioId: ScenarioId,
-  input: ConversationTurnRequest
-): {
-  agentTurn: TranscriptTurn;
-  riskState: RiskState;
-  newMemory?: MemoryItem;
-  alert?: AlertRecord;
-} {
-  if (scenarioId === "normal_check_in") {
-    const newMemory: MemoryItem = {
-      id: id("mem"),
-      elderId: input.elderId,
-      category: "health",
-      text: "Knee pain appears to be improving compared with last week.",
-      observedAt: now(),
-      importance: "medium"
-    };
-
-    return {
-      newMemory,
-      riskState: {
-        riskLevel: "low",
-        riskScore: 16,
-        knownFacts: ["Knee pain improving", "Conversational tone stable"],
-        uncertainties: ["Sleep quality", "Medication adherence"],
-        nextGoal: "Briefly check sleep and then close without over-questioning.",
-        recommendedAction: "No caregiver action needed",
-        alertRequired: false,
-        signals: []
-      },
-      agentTurn: transcriptTurn(
-        "ai",
-        "少し良くなったんですね。安心しました。昨日は少しお疲れのようでしたが、昨夜は眠れましたか？",
-        "I am glad it is a little better. You sounded a little tired yesterday. Were you able to sleep last night?"
-      )
-    };
+function createSummaryText(): string {
+  if (state.riskState.alertRequired) {
+    return "Check-in found safety signals that require caregiver follow-up.";
   }
 
-  if (scenarioId === "loneliness_decline") {
-    return {
-      riskState: {
-        riskLevel: "medium",
-        riskScore: 48,
-        knownFacts: ["Has not talked to people much recently", "No immediate physical complaint"],
-        uncertainties: ["Mood duration", "Whether family contact would help"],
-        nextGoal: "Explore social contact gently without making the call feel clinical.",
-        recommendedAction: "Suggest daughter calls this week",
-        alertRequired: false,
-        signals: [
-          {
-            id: id("signal"),
-            label: "Reduced social contact",
-            severity: "medium",
-            evidence: input.textJa,
-            detectedAt: now()
-          }
-        ]
-      },
-      agentTurn: transcriptTurn(
-        "ai",
-        "そうだったんですね。ここ数日は、誰かと電話したり、少し外に出たりする機会はありましたか？",
-        "I see. In the past few days, have you had a chance to call anyone or go outside for a little while?"
-      )
-    };
+  if (state.riskState.riskLevel === "medium") {
+    return "Check-in found a non-urgent well-being concern that should be followed up softly.";
   }
 
-  const alert: AlertRecord = {
-    id: id("alert"),
-    elderId: input.elderId,
-    severity: "high",
-    title: "Fall and dizziness reported",
-    reason: "Sato-san reported falling yesterday and feeling unsteady when standing today.",
-    suggestedAction: "Daughter should call now and confirm whether in-person help is needed.",
-    evidence: [
-      "Reported a fall yesterday",
-      "Feels dizzy or unsteady when standing",
-      "Lives alone",
-      "Recent knee pain memory increases concern"
-    ],
-    createdAt: now(),
-    acknowledged: false
-  };
-
-  return {
-    alert,
-    riskState: {
-      riskLevel: "high",
-      riskScore: 82,
-      knownFacts: ["Fell yesterday", "Feels unsteady when standing", "Lives alone"],
-      uncertainties: ["Injury severity", "Whether they can move safely", "Whether immediate help is nearby"],
-      nextGoal: "Clarify immediate safety and whether the daughter should be notified.",
-      recommendedAction: "Create caregiver alert",
-      alertRequired: true,
-      signals: [
-        {
-          id: id("signal"),
-          label: "Fall",
-          severity: "high",
-          evidence: "昨日ちょっと転んで",
-          detectedAt: now()
-        },
-        {
-          id: id("signal"),
-          label: "Dizziness when standing",
-          severity: "high",
-          evidence: "今日は立つとふらつきます",
-          detectedAt: now()
-        }
-      ]
-    },
-    agentTurn: transcriptTurn(
-      "ai",
-      "それは心配ですね。今はお一人ですか？けがや痛みはありますか？念のため、ご家族に状況を知らせますね。",
-      "That is concerning. Are you alone right now? Do you have any injury or pain? I will let your family know just to be safe."
-    )
-  };
+  return "Check-in completed without evidence requiring caregiver action.";
 }
