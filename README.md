@@ -27,7 +27,7 @@ packages/contracts
   Shared Zod schemas and TypeScript types for all service communication.
 
 docs
-  Architecture, service contracts, deployment notes, and demo scenarios.
+  Architecture, Gemini agent setup, service contracts, deployment notes, and demo scenarios.
 ```
 
 ## Local Development
