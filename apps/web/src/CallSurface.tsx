@@ -2,7 +2,7 @@ import type { DashboardSnapshot, LiveSessionBootstrapResponse } from "@voice-age
 import type { CSSProperties, FormEvent } from "react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createAdkVoiceClient, type AdkVoiceClient, type AdkVoiceMessage } from "./adkVoiceClient";
-import { startLiveSession } from "./api";
+import { completeCall, startLiveSession } from "./api";
 import {
   createPcmAudioPlayer,
   startPcm16MicrophoneStream,
@@ -337,6 +337,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
   const micResumeTimerRef = useRef<number | null>(null);
   const finalizeCloseTimerRef = useRef<number | null>(null);
   const finalizedSessionRef = useRef<string | null>(null);
+  const completingSessionRef = useRef<string | null>(null);
   const [status, setStatus] = useState<CallSurfaceStatus>("idle");
   const [micState, setMicState] = useState<MicState>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -503,6 +504,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
           setStatus((currentStatus) => (currentStatus === "error" ? currentStatus : "ended"));
           stopAudio("stopped");
           appendEventSummary(copy.closedEvent);
+          void completeBackendSessionIfNeeded(runId, started.session.sessionId);
         },
         onError: (nextError) => {
           if (!isActiveRun(runId)) {
@@ -552,10 +554,15 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
   }
 
   function handleEndCall() {
-    activeRunRef.current += 1;
+    const sessionId = bootstrap?.session.sessionId;
+    const runId = activeRunRef.current + 1;
+    activeRunRef.current = runId;
     closeCurrentClient("stopped");
     setStatus("ended");
     appendEventSummary(copy.endedEvent);
+    if (sessionId) {
+      void completeBackendSessionIfNeeded(runId, sessionId);
+    }
   }
 
   function handleCloseSurface() {
@@ -713,6 +720,41 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
     }
 
     scheduleFinalizedCallClose(runId, client);
+  }
+
+  async function completeBackendSessionIfNeeded(runId: number, sessionId: string) {
+    if (finalizedSessionRef.current === sessionId || completingSessionRef.current === sessionId) {
+      return;
+    }
+
+    completingSessionRef.current = sessionId;
+
+    try {
+      const completed = await completeCall(sessionId);
+      if (!isActiveRun(runId)) {
+        return;
+      }
+
+      finalizedSessionRef.current = sessionId;
+      onSnapshot(completed.snapshot);
+      appendEventSummary(
+        language === "ja"
+          ? "通話の要約をダッシュボードに保存しました。"
+          : "Call summary saved to the dashboard."
+      );
+    } catch (nextError) {
+      if (!isActiveRun(runId)) {
+        return;
+      }
+
+      const message = getErrorMessage(nextError, "Call completion failed.");
+      setError(message);
+      appendEventSummary(`Completion failed: ${message}`);
+    } finally {
+      if (completingSessionRef.current === sessionId) {
+        completingSessionRef.current = null;
+      }
+    }
   }
 
   function scheduleFinalizedCallClose(runId: number, client: AdkVoiceClient) {
