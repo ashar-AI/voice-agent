@@ -13,14 +13,15 @@ Implemented:
 - Shared Zod/TypeScript contracts.
 - In-memory fallback state.
 - Fallback local evaluator for development only.
+- Agent adapter boundary with fallback and Gemini modes.
+- Gemini 3.5 Flash structured decision foundation.
+- Agent tool endpoints for profile, memory, risk state, alerts, and summaries.
 - SSE/HTTP dashboard updates.
 - Dockerfile and Cloud Run deployment notes.
 
 Not yet implemented:
 
 - Gemini Live API voice session.
-- Gemini 3.5 Flash agent decision path.
-- Agent tool endpoints.
 - Firestore persistence.
 - Managed Agent caregiver briefing bonus.
 

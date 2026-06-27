@@ -5,6 +5,7 @@ import {
 } from "@voice-agent/contracts";
 import Fastify from "fastify";
 import { z, ZodError } from "zod";
+import { AgentToolRouteParamsSchema, handleAgentToolRequest } from "./agentTools.js";
 import { DEMO_ELDER_ID, demoScenarios } from "./demoData.js";
 import {
   completeCallSession,
@@ -97,6 +98,15 @@ export function buildServer() {
     try {
       const input = ConversationTurnRequestSchema.parse(request.body);
       return await handleConversationTurn(input);
+    } catch (error) {
+      return handleRouteError(reply, error);
+    }
+  });
+
+  app.post("/api/agent-tools/:toolName", async (request, reply) => {
+    try {
+      const params = AgentToolRouteParamsSchema.parse(request.params);
+      return handleAgentToolRequest(params.toolName, request.body);
     } catch (error) {
       return handleRouteError(reply, error);
     }

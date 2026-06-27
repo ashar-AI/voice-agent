@@ -23,6 +23,24 @@ Use the official Gemini SDK:
 npm install @google/genai
 ```
 
+## API Environment
+
+API workspace configuration:
+
+```text
+AGENT_MODE=fallback|gemini
+GEMINI_API_KEY=<Google AI Studio API key>
+GEMINI_REASONING_MODEL=gemini-3.5-flash
+```
+
+Defaults:
+
+- `AGENT_MODE` defaults to `fallback`.
+- `GEMINI_REASONING_MODEL` defaults to `gemini-3.5-flash`.
+- `GEMINI_API_KEY` is required only when `AGENT_MODE=gemini`.
+
+Fallback mode must start without Gemini credentials. If `AGENT_MODE=gemini` is set but no `GEMINI_API_KEY` is present, the API should continue using the local fallback agent.
+
 ## Model Choices
 
 Primary reasoning:

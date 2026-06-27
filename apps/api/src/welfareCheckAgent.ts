@@ -1,10 +1,22 @@
 import type {
+  AlertRecord,
   AgentDecision,
   AgentTurnRequest,
   AgentTurnResponse,
+  MemoryItem,
+  RiskLevel,
   RiskState,
   TranscriptTurn
 } from "@voice-agent/contracts";
+import {
+  createGeminiDecisionGenerator,
+  type GeminiDecisionGenerator
+} from "./geminiDecisionAdapter.js";
+import {
+  isGeminiDecisionEnabled,
+  readGeminiAgentConfig,
+  type GeminiAgentConfig
+} from "./geminiConfig.js";
 import { evaluateUserTurn } from "./riskEvaluator.js";
 
 export type WelfareCheckAgentRuntime = {
@@ -55,18 +67,47 @@ export class FallbackWelfareCheckAgent implements WelfareCheckAgent {
 }
 
 export class GeminiWelfareCheckAgent implements WelfareCheckAgent {
-  constructor(private readonly fallbackAgent: WelfareCheckAgent = new FallbackWelfareCheckAgent()) {}
+  constructor(
+    private readonly fallbackAgent: WelfareCheckAgent = new FallbackWelfareCheckAgent(),
+    private readonly options: {
+      config?: GeminiAgentConfig;
+      decisionGenerator?: GeminiDecisionGenerator;
+    } = {}
+  ) {}
 
   async createTurn(
     request: AgentTurnRequest,
     runtime: WelfareCheckAgentRuntime
   ): Promise<WelfareCheckAgentResult> {
-    return this.fallbackAgent.createTurn(request, runtime);
+    const fallbackResult = await this.fallbackAgent.createTurn(request, runtime);
+    const config = this.options.config ?? readGeminiAgentConfig();
+
+    if (!isGeminiDecisionEnabled(config)) {
+      return fallbackResult;
+    }
+
+    const decisionGenerator =
+      this.options.decisionGenerator ?? createGeminiDecisionGenerator(config);
+    const decision = await decisionGenerator(request);
+
+    if (!decision) {
+      return fallbackResult;
+    }
+
+    return {
+      ...fallbackResult,
+      decision,
+      riskState: riskStateFromDecision(fallbackResult.riskState, decision),
+      proposedAlert: decision.shouldCreateAlert
+        ? fallbackResult.proposedAlert ?? alertFromDecision(request, decision)
+        : undefined,
+      proposedMemory: fallbackResult.proposedMemory ?? memoryFromDecision(request, decision)
+    };
   }
 }
 
 export function createWelfareCheckAgent(
-  provider = process.env.AGENT_MODE ?? "fallback"
+  provider = readGeminiAgentConfig().agentMode
 ): WelfareCheckAgent {
   if (provider === "gemini") {
     return new GeminiWelfareCheckAgent();
@@ -102,4 +143,64 @@ function createDecision(riskState: RiskState): AgentDecision {
     shouldCreateAlert: riskState.alertRequired,
     shouldFinalizeCall: false
   };
+}
+
+function riskStateFromDecision(base: RiskState, decision: AgentDecision): RiskState {
+  return {
+    ...base,
+    riskLevel: decision.riskLevel,
+    riskScore: riskScoreFromDecision(decision.riskLevel, decision.confidence),
+    knownFacts: decision.evidence.length > 0 ? decision.evidence : base.knownFacts,
+    uncertainties: decision.openQuestions,
+    nextGoal: decision.nextGoal,
+    recommendedAction: decision.recommendedAction,
+    alertRequired: decision.shouldCreateAlert
+  };
+}
+
+function alertFromDecision(
+  request: AgentTurnRequest,
+  decision: AgentDecision
+): Omit<AlertRecord, "id" | "createdAt" | "acknowledged"> {
+  return {
+    elderId: request.elderId,
+    severity: decision.riskLevel,
+    title: "Welfare check follow-up recommended",
+    reason: decision.evidence.join("; "),
+    suggestedAction: decision.recommendedAction,
+    evidence: decision.evidence
+  };
+}
+
+function memoryFromDecision(
+  request: AgentTurnRequest,
+  decision: AgentDecision
+): Omit<MemoryItem, "id" | "observedAt"> | undefined {
+  if (decision.riskLevel === "stable" || decision.evidence.length === 0) {
+    return undefined;
+  }
+
+  return {
+    elderId: request.elderId,
+    category: decision.shouldCreateAlert ? "safety" : "health",
+    text: `Gemini decision evidence: ${decision.evidence.join(", ")}.`,
+    importance: decision.shouldCreateAlert ? "high" : "medium"
+  };
+}
+
+function riskScoreFromDecision(riskLevel: RiskLevel, confidence: number): number {
+  const baseScoreByLevel: Record<RiskLevel, number> = {
+    stable: 15,
+    watch: 30,
+    concern: 50,
+    high: 75,
+    urgent: 92
+  };
+
+  const confidenceAdjustment = Math.round((confidence - 0.5) * 10);
+  return clamp(baseScoreByLevel[riskLevel] + confidenceAdjustment, 0, 100);
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }

@@ -147,7 +147,7 @@ Acceptance:
 
 ### T30: Backend Tool Handlers
 
-Status: `Ready`
+Status: `Done`
 
 Dependencies: T10, T20
 
@@ -177,7 +177,7 @@ Acceptance:
 
 ### T40: Gemini Decision Adapter
 
-Status: `Ready`
+Status: `Done`
 
 Dependencies: T10, T20
 
@@ -233,7 +233,7 @@ Acceptance:
 
 ### T60: Browser Voice Session
 
-Status: `Blocked`
+Status: `Ready`
 
 Dependencies: T30, T40, T50
 
@@ -261,7 +261,7 @@ Acceptance:
 
 ### T70: Firestore Persistence
 
-Status: `Blocked`
+Status: `Ready`
 
 Dependencies: T10, T30
 
@@ -369,7 +369,7 @@ Acceptance:
 
 ### T90: Managed Agent Briefing Bonus
 
-Status: `Blocked`
+Status: `Ready`
 
 Dependencies: T30, T40
 

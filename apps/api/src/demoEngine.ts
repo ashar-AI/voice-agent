@@ -2,17 +2,29 @@ import type {
   AlertRecord,
   CallSummary,
   CallSession,
+  CreateAlertToolInput,
+  CreateAlertToolOutput,
   ConversationTurnRequest,
   ConversationTurnResponse,
   DashboardEvent,
   DashboardSnapshot,
+  FinalizeCallSummaryToolInput,
+  FinalizeCallSummaryToolOutput,
+  GetElderProfileToolInput,
+  GetElderProfileToolOutput,
+  GetRecentMemoriesToolInput,
+  GetRecentMemoriesToolOutput,
   MemoryItem,
   RiskState,
   ScenarioId,
   CompleteCallResponse,
+  SaveMemoryToolInput,
+  SaveMemoryToolOutput,
   StartScenarioRequest,
   StartScenarioResponse,
-  TranscriptTurn
+  TranscriptTurn,
+  UpdateCallStateToolInput,
+  UpdateCallStateToolOutput
 } from "@voice-agent/contracts";
 import {
   DEMO_ELDER_ID,
@@ -128,10 +140,125 @@ export function getDashboardSnapshot(): DashboardSnapshot {
   return snapshot();
 }
 
-export function startScenario(input: StartScenarioRequest): StartScenarioResponse {
-  if (input.elderId !== DEMO_ELDER_ID) {
-    throw new Error(`Unknown elder: ${input.elderId}`);
+export function getElderProfileTool(
+  input: GetElderProfileToolInput
+): GetElderProfileToolOutput {
+  assertKnownElder(input.elderId);
+  return {
+    profile: demoProfile
+  };
+}
+
+export function getRecentMemoriesTool(
+  input: GetRecentMemoriesToolInput
+): GetRecentMemoriesToolOutput {
+  assertKnownElder(input.elderId);
+  const sortedMemories = [...state.memories]
+    .filter((memory) => memory.elderId === input.elderId)
+    .sort((left, right) => right.observedAt.localeCompare(left.observedAt));
+
+  return {
+    memories: sortedMemories.slice(0, input.limit ?? sortedMemories.length)
+  };
+}
+
+export function updateCallStateTool(
+  input: UpdateCallStateToolInput
+): UpdateCallStateToolOutput {
+  assertKnownElder(input.elderId);
+  assertMatchingSession(input.sessionId);
+
+  state.riskState = input.riskState;
+  if (input.transcriptTurn) {
+    state.transcript.push(input.transcriptTurn);
   }
+
+  emit("risk.updated");
+
+  return {
+    riskState: state.riskState,
+    snapshot: snapshot()
+  };
+}
+
+export function saveMemoryTool(input: SaveMemoryToolInput): SaveMemoryToolOutput {
+  assertKnownElder(input.elderId);
+  assertOptionalMatchingSession(input.sessionId);
+
+  const memory: MemoryItem = {
+    elderId: input.elderId,
+    category: input.category,
+    text: input.text,
+    importance: input.importance,
+    id: id("mem"),
+    observedAt: now()
+  };
+
+  state.memories = [memory, ...state.memories];
+  emit("snapshot.updated");
+
+  return {
+    memory
+  };
+}
+
+export function createAlertTool(input: CreateAlertToolInput): CreateAlertToolOutput {
+  assertKnownElder(input.elderId);
+  assertOptionalMatchingSession(input.sessionId);
+
+  const alert: AlertRecord = {
+    elderId: input.elderId,
+    severity: input.severity,
+    title: input.title,
+    reason: input.reason,
+    suggestedAction: input.suggestedAction,
+    evidence: input.evidence,
+    id: id("alert"),
+    createdAt: now(),
+    acknowledged: false
+  };
+
+  state.alerts = [alert, ...state.alerts];
+  emit("alert.created");
+
+  return {
+    alert
+  };
+}
+
+export function finalizeCallSummaryTool(
+  input: FinalizeCallSummaryToolInput
+): FinalizeCallSummaryToolOutput {
+  assertKnownElder(input.elderId);
+  const session = assertMatchingSession(input.sessionId);
+
+  const summary: CallSummary = {
+    elderId: input.elderId,
+    sessionId: input.sessionId,
+    summary: input.summary,
+    riskLevel: input.riskLevel,
+    riskScore: input.riskScore,
+    keyEvidence: input.keyEvidence,
+    recommendedFollowUp: input.recommendedFollowUp,
+    id: id("summary"),
+    createdAt: now()
+  };
+
+  state.session = {
+    ...session,
+    status: "completed",
+    completedAt: now()
+  };
+  state.latestSummary = summary;
+  emit("call.completed");
+
+  return {
+    summary
+  };
+}
+
+export function startScenario(input: StartScenarioRequest): StartScenarioResponse {
+  assertKnownElder(input.elderId);
 
   resetDemoState();
 
@@ -153,6 +280,26 @@ export function startScenario(input: StartScenarioRequest): StartScenarioRespons
     snapshot: snapshot(),
     agentOpening
   };
+}
+
+function assertKnownElder(elderId: string) {
+  if (elderId !== DEMO_ELDER_ID) {
+    throw new Error(`Unknown elder: ${elderId}`);
+  }
+}
+
+function assertMatchingSession(sessionId: string): CallSession {
+  if (!state.session || state.session.sessionId !== sessionId) {
+    throw new Error("No active matching session");
+  }
+
+  return state.session;
+}
+
+function assertOptionalMatchingSession(sessionId: string | undefined) {
+  if (sessionId) {
+    assertMatchingSession(sessionId);
+  }
 }
 
 export async function handleConversationTurn(

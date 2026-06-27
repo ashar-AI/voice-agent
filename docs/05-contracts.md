@@ -51,12 +51,13 @@ GET  /api/elders/:elderId/events
 POST /api/demo/reset
 POST /api/scenarios/start
 POST /api/conversation/turn
+POST /api/agent-tools/:toolName
 POST /api/calls/:sessionId/complete
 ```
 
-These current routes support local fallback/demo mode. They are not the final Gemini Live interface.
+The scenario and conversation routes support local fallback/demo mode. They are not the final Gemini Live interface.
 
-## Planned Tool API
+## Tool API
 
 Gemini function calls map to:
 
