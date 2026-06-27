@@ -24,6 +24,21 @@ const riskLabels: Record<RiskLevel, string> = {
   urgent: "Urgent"
 };
 
+const responsePresets: Record<ScenarioId, { title: string; description: string }> = {
+  normal_check_in: {
+    title: "Stable response",
+    description: "Knee pain is improving; keep monitoring without alerting."
+  },
+  loneliness_decline: {
+    title: "Social isolation signal",
+    description: "Low urgency concern; suggest a family follow-up."
+  },
+  fall_dizziness_escalation: {
+    title: "Safety concern",
+    description: "Fall and dizziness signals; notify caregiver with evidence."
+  }
+};
+
 export function App() {
   const [scenarios, setScenarios] = useState<DemoScenario[]>([]);
   const [snapshot, setSnapshot] = useState<DashboardSnapshot | null>(null);
@@ -58,7 +73,7 @@ export function App() {
             ?.elderLineEn ?? ""
         );
       } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : "Failed to load demo");
+        setError(nextError instanceof Error ? nextError.message : "Failed to load workspace");
       }
     }
 
@@ -168,31 +183,52 @@ export function App() {
   if (!snapshot) {
     return (
       <main className="shell">
-        <section className="loading">Loading demo...</section>
+        <section className="loading">Loading caregiver workspace...</section>
       </main>
     );
   }
 
   const activeAlert = snapshot.alerts[0];
   const activeSession = snapshot.session?.status === "active" ? snapshot.session : undefined;
+  const lastUpdated = new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(new Date(snapshot.updatedAt));
 
   return (
     <main className="shell">
+      <nav className="app-header">
+        <div className="brand">
+          <span className="brand-mark">CV</span>
+          <div>
+            <strong>CareVoice</strong>
+            <span>Caregiver command center</span>
+          </div>
+        </div>
+        <div className="status-row">
+          <span>{snapshot.session ? `Check-in ${snapshot.session.status}` : "No active check-in"}</span>
+          <span>{isRealtimeConnected ? "Live updates connected" : "Live updates reconnecting"}</span>
+          <span>Updated {lastUpdated}</span>
+        </div>
+      </nav>
+
       <header className="hero">
         <div>
-          <p className="eyebrow">Gemini Tokyo Hackathon Demo Scaffold</p>
-          <h1>AI Welfare-Check Voice Companion</h1>
+          <p className="eyebrow">Today&apos;s welfare status</p>
+          <h1>{snapshot.profile.displayName}</h1>
           <p className="hero-copy">
-            Memory-aware Japanese check-in agent with realtime risk state and
-            evidence-based caregiver alerts.
+            Daily voice check-ins track well-being, memory context, and early safety signals
+            so family and caregivers know when to follow up.
           </p>
-          <div className="status-row">
-            <span>{snapshot.session ? `Call ${snapshot.session.status}` : "No active call"}</span>
-            <span>{isRealtimeConnected ? "Realtime updates connected" : "Realtime fallback: HTTP response"}</span>
+          <div className="patient-meta">
+            <span>{snapshot.profile.age} years old</span>
+            <span>{snapshot.profile.livesAlone ? "Lives alone" : "Lives with support"}</span>
+            <span>Emergency contact: {snapshot.profile.emergencyContactName}</span>
           </div>
         </div>
         <div className={`risk-meter risk-${snapshot.riskState.riskLevel}`}>
-          <span>Risk</span>
+          <span>Well-being risk</span>
           <strong>{snapshot.riskState.riskScore}</strong>
           <em>{riskLabels[snapshot.riskState.riskLevel]}</em>
         </div>
@@ -206,15 +242,43 @@ export function App() {
         <AlertCard alert={activeAlert} />
       </section>
 
-      <section className="panel">
+      <section className="panel console-panel">
         <div className="section-title">
           <div>
-            <h2>Turn-by-Turn Demo</h2>
-            <p>Choose a planned case, start the call, send the elder response, then watch risk and alert state update.</p>
+            <h2>Live Check-In Console</h2>
+            <p>Start the scheduled call, capture the elder response, and let the platform update risk, memory, and alerts.</p>
           </div>
           <button className="secondary" disabled={isBusy} onClick={() => void reset()}>
-            Reset
+            Clear Session
           </button>
+        </div>
+
+        <div className="console-flow" aria-label="Check-in workflow">
+          <div className={snapshot.session ? "flow-node done" : "flow-node"}>
+            <span>1</span>
+            <strong>Call started</strong>
+            <em>Agent opens from memory</em>
+          </div>
+          <div className={snapshot.transcript.some((turn) => turn.speaker === "elder") ? "flow-node done" : "flow-node"}>
+            <span>2</span>
+            <strong>Response captured</strong>
+            <em>Utterance is evaluated</em>
+          </div>
+          <div className={snapshot.riskState.signals.length > 0 ? "flow-node done" : "flow-node"}>
+            <span>3</span>
+            <strong>Risk updated</strong>
+            <em>Next goal is selected</em>
+          </div>
+          <div className={snapshot.session?.status === "completed" ? "flow-node done" : "flow-node"}>
+            <span>4</span>
+            <strong>Summary ready</strong>
+            <em>Caregiver follow-up</em>
+          </div>
+        </div>
+
+        <div className="operator-note">
+          Input source: select a sample elder response or edit it manually.
+          The voice channel will send the same payload automatically.
         </div>
 
         <div className="scenario-grid">
@@ -229,15 +293,15 @@ export function App() {
               onClick={() => selectScenario(scenario.scenarioId)}
               type="button"
             >
-              <strong>{scenario.title}</strong>
-              <span>{scenario.purpose}</span>
+              <strong>{responsePresets[scenario.scenarioId].title}</strong>
+              <span>{responsePresets[scenario.scenarioId].description}</span>
             </button>
           ))}
         </div>
 
         <div className="input-row">
           <label>
-            Elder line in Japanese
+            Captured elder response in Japanese
             <textarea
               value={customTextJa}
               onChange={(event) => setCustomTextJa(event.target.value)}
@@ -245,7 +309,7 @@ export function App() {
             />
           </label>
           <label>
-            English translation
+            English translation for caregiver review
             <textarea
               value={customTextEn}
               onChange={(event) => setCustomTextEn(event.target.value)}
@@ -256,13 +320,13 @@ export function App() {
 
         <div className="button-row">
           <button className="primary" disabled={isBusy || !selectedScenario} onClick={() => void startSelectedCall()}>
-            {isBusy ? "Working..." : "1. Start Call"}
+            {isBusy ? "Working..." : "Start Check-In"}
           </button>
           <button className="primary" disabled={isBusy || !customTextJa || !activeSession} onClick={() => void sendElderResponse()}>
-            2. Send Elder Response
+            Process Response
           </button>
           <button className="secondary" disabled={isBusy || !activeSession} onClick={() => void completeActiveCall()}>
-            3. Complete Call
+            Complete Check-In
           </button>
         </div>
       </section>
@@ -281,8 +345,8 @@ export function App() {
 function ProfileCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
     <article className="card">
-      <span className="card-kicker">Elder profile</span>
-      <h2>{snapshot.profile.displayName}</h2>
+      <span className="card-kicker">Care recipient</span>
+      <h2>Home context</h2>
       <dl className="facts">
         <div><dt>Age</dt><dd>{snapshot.profile.age}</dd></div>
         <div><dt>Lives alone</dt><dd>{snapshot.profile.livesAlone ? "Yes" : "No"}</dd></div>
@@ -295,7 +359,7 @@ function ProfileCard({ snapshot }: { snapshot: DashboardSnapshot }) {
 function RiskCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
     <article className="card">
-      <span className="card-kicker">Realtime risk state</span>
+      <span className="card-kicker">AI reasoning state</span>
       <h2>{snapshot.riskState.nextGoal}</h2>
       <div className="chip-row">
         {snapshot.riskState.knownFacts.map((fact) => (
@@ -317,7 +381,7 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
   if (!alert) {
     return (
       <article className="card calm">
-        <span className="card-kicker">Alert surface</span>
+        <span className="card-kicker">Alert center</span>
         <h2>No active alert</h2>
         <p className="muted">Caregiver notification stays quiet until evidence crosses threshold.</p>
       </article>
@@ -326,7 +390,7 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
 
   return (
     <article className="card alert">
-      <span className="card-kicker">Caregiver alert</span>
+      <span className="card-kicker">Alert center</span>
       <h2>{alert.title}</h2>
       <p>{alert.reason}</p>
       <ul>
@@ -339,10 +403,10 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
 function TranscriptCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
     <article className="card transcript">
-      <span className="card-kicker">Conversation</span>
-      <h2>Japanese call transcript</h2>
+      <span className="card-kicker">Live check-in</span>
+      <h2>Conversation transcript</h2>
       {snapshot.transcript.length === 0 ? (
-        <p className="muted">Run a scenario to create the live transcript.</p>
+        <p className="muted">Start the scheduled check-in to create the live transcript.</p>
       ) : (
         <div className="turn-list">
           {snapshot.transcript.map((turn) => (
@@ -362,7 +426,7 @@ function MemoryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
     <article className="card memory">
       <span className="card-kicker">Memory timeline</span>
-      <h2>What the agent knows</h2>
+      <h2>Longitudinal context</h2>
       <div className="memory-list">
         {snapshot.memories.map((memory) => (
           <div className="memory-item" key={memory.id}>

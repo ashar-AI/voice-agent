@@ -24,6 +24,45 @@ textarea {
   padding: 28px 0 48px;
 }
 
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-mark {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 12px;
+  color: #ffffff;
+  background: #1a73e8;
+  font-weight: 900;
+}
+
+.brand strong,
+.brand span {
+  display: block;
+}
+
+.brand strong {
+  font-size: 1.05rem;
+}
+
+.brand span {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
 .hero {
   display: grid;
   grid-template-columns: 1fr 160px;
@@ -79,6 +118,23 @@ h2 {
 }
 
 .status-row span {
+  padding: 7px 10px;
+  border-radius: 999px;
+  color: #334155;
+  background: #ffffff;
+  border: 1px solid #d9e2ee;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.patient-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.patient-meta span {
   padding: 7px 10px;
   border-radius: 999px;
   color: #174ea6;
@@ -151,6 +207,68 @@ h2 {
 
 .panel {
   margin-top: 14px;
+}
+
+.console-panel {
+  border-color: #cbd8e8;
+}
+
+.console-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.flow-node {
+  display: grid;
+  gap: 6px;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid #d9e2ee;
+  border-radius: 14px;
+  background: #fbfdff;
+}
+
+.flow-node span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: #64748b;
+  background: #e2e8f0;
+  font-weight: 900;
+}
+
+.flow-node strong {
+  line-height: 1.2;
+}
+
+.flow-node em {
+  color: #64748b;
+  font-size: 0.86rem;
+  font-style: normal;
+}
+
+.flow-node.done {
+  border-color: #bad7c4;
+  background: #f4fbf6;
+}
+
+.flow-node.done span {
+  color: #ffffff;
+  background: #188038;
+}
+
+.operator-note {
+  margin: 0 0 12px;
+  padding: 11px 13px;
+  border: 1px dashed #b8c7dc;
+  border-radius: 12px;
+  color: #64748b;
+  background: #f8fbff;
+  font-size: 0.9rem;
 }
 
 .error {
@@ -246,12 +364,12 @@ h2 {
 }
 
 .scenario-card {
-  min-height: 138px;
+  min-height: 112px;
   padding: 16px;
   border: 1px solid #d9e2ee;
   border-radius: 14px;
   color: #1f2937;
-  background: #ffffff;
+  background: #fbfdff;
   text-align: left;
   cursor: pointer;
 }
@@ -378,12 +496,17 @@ textarea {
 }
 
 @media (max-width: 860px) {
+  .app-header {
+    display: grid;
+  }
+
   .hero,
   .overview-grid,
   .detail-grid,
   .input-row,
   .scenario-grid,
-  .button-row {
+  .button-row,
+  .console-flow {
     grid-template-columns: 1fr;
   }
 
