@@ -4,6 +4,8 @@ Last updated: 2026-06-27 JST
 
 Goal: move from the current scaffold to Gemini-agent-driven behavior while preserving fallback reliability.
 
+For owner-ready small tasks, dependency order, and merge sequencing, use [`08-task-dependency-hierarchy.md`](./08-task-dependency-hierarchy.md).
+
 ## Phase 1: Contracts And Adapter Boundary
 
 Tasks:

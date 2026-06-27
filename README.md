@@ -36,6 +36,7 @@ Start here:
 - [Contracts](./docs/05-contracts.md)
 - [Demo script](./docs/06-demo-script.md)
 - [Deployment](./docs/07-deployment.md)
+- [Task dependency hierarchy](./docs/08-task-dependency-hierarchy.md)
 
 Archived earlier planning artifact:
 
