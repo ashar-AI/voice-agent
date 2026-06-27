@@ -492,6 +492,9 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
           if (!isActiveRun(runId)) {
             return;
           }
+          if (clientRef.current === nextClient) {
+            clientRef.current = null;
+          }
           setStatus((currentStatus) => (currentStatus === "error" ? currentStatus : "ended"));
           stopAudio("stopped");
           appendEventSummary(copy.closedEvent);
@@ -601,7 +604,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
         client.sendAudioChunk(chunk);
       });
 
-      if (!isActiveRun(runId) || clientRef.current !== client) {
+      if (!isActiveRun(runId) || clientRef.current !== client || client.readyState !== WebSocket.OPEN) {
         streamer.stop();
         return;
       }
