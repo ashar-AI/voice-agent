@@ -8,22 +8,56 @@ The product goal is a memory-enabled Japanese voice agent that checks in natural
 
 Implemented:
 
-- React caregiver dashboard scaffold.
-- Fastify API scaffold.
+- React caregiver dashboard and browser call surface.
+- Fastify API for state, scenario bootstrap, ADK tool callbacks, and SSE updates.
 - Shared Zod/TypeScript contracts.
-- In-memory fallback state.
+- Firestore-backed deployed state with in-memory local fallback.
 - Fallback local evaluator for development only.
 - Agent adapter boundary with fallback and Gemini modes.
-- Gemini 3.5 Flash structured decision foundation.
+- ADK voice bridge to Gemini 3.1 Flash Live Preview through the Gemini API / AI Studio key.
 - Agent tool endpoints for profile, memory, risk state, alerts, and summaries.
-- Caregiver briefing bonus foundation.
-- Repository abstraction with memory mode and Firestore mode.
-- SSE/HTTP dashboard updates.
-- Dockerfile and Cloud Run deployment notes.
+- Realtime agent-managed risk decisions, evidence-backed alerts, memory updates, and call finalization.
+- Caregiver briefing foundation.
+- Cloud Run deployment for web, API, and ADK voice services.
 
 Not yet implemented:
 
-- Gemini Live API voice session.
+- Production phone-call ingress. Browser voice is the primary demo path; Twilio Voice / Media Streams remains an optional stretch path.
+
+## Live Demo
+
+- Web app: <https://kizuna-web-ox3726wewq-an.a.run.app>
+- Dashboard: <https://kizuna-web-ox3726wewq-an.a.run.app/#dashboard>
+- Call surface: <https://kizuna-web-ox3726wewq-an.a.run.app/#call>
+
+## Final Architecture
+
+```mermaid
+flowchart LR
+  subgraph Web["Cloud Run: kizuna-web<br/>React static app"]
+    Call["Browser Call Surface<br/>/#call<br/>mic + speaker"]
+    Dashboard["Caregiver Dashboard<br/>/#dashboard<br/>risk, evidence, alerts"]
+  end
+
+  Call <-->|"WebSocket<br/>PCM audio + ADK events"| ADK["Cloud Run: kizuna-adk-voice<br/>FastAPI ADK bridge"]
+  Dashboard <-->|"REST snapshot<br/>SSE live updates"| API["Cloud Run: kizuna-api<br/>Fastify state + tool API"]
+
+  ADK <-->|"Realtime conversation<br/>Gemini Live session"| Gemini["Gemini 3.1 Flash Live Preview<br/>Gemini API / AI Studio"]
+  ADK -->|"Agent tool callbacks<br/>profile, memory, risk, alerts, finalize"| API
+
+  API <-->|"profile, memory,<br/>call state, alerts,<br/>summaries"| Firestore["Firestore<br/>carevoice_states"]
+  Secret["Secret Manager<br/>kizuna-gemini-api-key"] --> ADK
+
+  Twilio["Optional stretch<br/>Twilio Voice / Media Streams"] -.->|"phone audio ingress"| ADK
+```
+
+Core runtime path:
+
+1. The elder uses the browser call surface for the hackathon demo.
+2. The ADK voice service streams the conversation to Gemini Live.
+3. Gemini controls the conversation and calls tools for profile, memory, risk, alerts, and finalization.
+4. The API persists state in Firestore and pushes live dashboard updates over SSE.
+5. The caregiver dashboard shows the working platform: transcript, reasoning state, risk evidence, memory context, alerts, and post-call handoff.
 
 ## Documentation
 
