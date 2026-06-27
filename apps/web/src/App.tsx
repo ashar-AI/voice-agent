@@ -297,13 +297,15 @@ export function App() {
         <section className="grid dashboard-workspace">
           <div className="main-stack">
             <TranscriptCard snapshot={snapshot} />
-            <HandoffCard snapshot={snapshot} />
+            <div className="lower-left-grid">
+              <MemoryCard snapshot={snapshot} />
+              <HandoffCard snapshot={snapshot} />
+            </div>
           </div>
           <div className="side-stack">
             <RiskCard snapshot={snapshot} />
             <EvidenceCard snapshot={snapshot} />
             <AlertCard alert={activeAlert} alertCount={snapshot.alerts.length} />
-            <MemoryCard snapshot={snapshot} />
           </div>
         </section>
 
@@ -660,11 +662,11 @@ function TranscriptCard({ snapshot }: { snapshot: DashboardSnapshot }) {
 
 function MemoryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
-    <article className="card" id="memory">
+    <article className="card memory-card" id="memory">
       <span className="card-kicker">{icon("history")}Memory timeline</span>
       <h2>Longitudinal context</h2>
       <div className="memory-list">
-        {snapshot.memories.slice(0, 4).map((memory) => (
+        {snapshot.memories.slice(0, 3).map((memory) => (
           <div className={`memory-item ${memory.importance}`} key={memory.id}>
             <span className="mem-cat">{memory.category} · {formatShortDate(memory.observedAt)}</span>
             <p>{memory.text}</p>
