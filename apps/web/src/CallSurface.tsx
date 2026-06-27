@@ -40,7 +40,7 @@ const statusLabels: Record<CallSurfaceStatus, string> = {
 };
 
 const statusHelpText: Record<CallSurfaceStatus, string> = {
-  idle: "大きなボタンを押すと、CareVoice が日本語でお声がけします。",
+  idle: "大きなボタンを押すと、Kizuna が日本語でお声がけします。",
   starting: "通話の準備をしています。少しお待ちください。",
   connecting: "音声エージェントに接続しています。",
   live: "通話につながっています。マイクの声がADK音声エージェントに送られます。",
@@ -381,7 +381,7 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
       <div style={styles.surface}>
         <header style={styles.header}>
           <div style={styles.headerText}>
-            <p style={styles.eyebrow}>CareVoice</p>
+            <p style={styles.eyebrow}>Kizuna</p>
             <h1 style={styles.title}>お電話の時間です</h1>
           </div>
           <div style={{ ...styles.statusPill, borderColor: statusTone, color: statusTone }} aria-live="polite">
@@ -398,12 +398,12 @@ export function CallSurface({ elderId, adkBaseUrl, onSnapshot, onClose }: CallSu
 
         <main style={styles.callStage}>
           <div style={styles.avatar} aria-hidden="true">
-            CV
+            K
           </div>
           <div style={styles.callCopy}>
             <p style={styles.kicker}>{profileName ? `${profileName}さん` : "日本語の見守り通話"}</p>
             <p style={styles.openingLine} lang="ja">
-              {openingLine ?? "開始すると、CareVoice がゆっくり日本語でお声がけします。"}
+              {openingLine ?? "開始すると、Kizuna がゆっくり日本語でお声がけします。"}
             </p>
             <p style={styles.helperText}>{statusHelpText[status]}</p>
           </div>
