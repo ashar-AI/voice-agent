@@ -5,6 +5,7 @@ import { baseMemories, createInitialRiskState, demoProfile } from "./demoData.js
 import { parseAgentDecisionJson } from "./geminiDecisionAdapter.js";
 import {
   DEFAULT_GEMINI_REASONING_MODEL,
+  DEFAULT_GEMINI_VERTEX_LOCATION,
   isGeminiDecisionEnabled,
   readGeminiAgentConfig
 } from "./geminiConfig.js";
@@ -54,23 +55,49 @@ test("Gemini config defaults to credential-free fallback mode", () => {
 
   assert.deepEqual(config, {
     agentMode: "fallback",
+    backend: "developer",
     apiKey: undefined,
-    reasoningModel: DEFAULT_GEMINI_REASONING_MODEL
+    reasoningModel: DEFAULT_GEMINI_REASONING_MODEL,
+    vertexProject: undefined,
+    vertexLocation: DEFAULT_GEMINI_VERTEX_LOCATION
   });
   assert.equal(isGeminiDecisionEnabled(config), false);
 });
 
-test("Gemini config enables decisions only in gemini mode with a key", () => {
+test("Gemini config enables developer API decisions in gemini mode with a key", () => {
   const config = readGeminiAgentConfig({
     AGENT_MODE: "gemini",
+    GEMINI_BACKEND: "developer",
     GEMINI_API_KEY: " test-key ",
     GEMINI_REASONING_MODEL: "gemini-test-model"
   });
 
   assert.deepEqual(config, {
     agentMode: "gemini",
+    backend: "developer",
     apiKey: "test-key",
-    reasoningModel: "gemini-test-model"
+    reasoningModel: "gemini-test-model",
+    vertexProject: undefined,
+    vertexLocation: DEFAULT_GEMINI_VERTEX_LOCATION
+  });
+  assert.equal(isGeminiDecisionEnabled(config), true);
+});
+
+test("Gemini config enables Vertex decisions in gemini mode with a project", () => {
+  const config = readGeminiAgentConfig({
+    AGENT_MODE: "gemini",
+    GEMINI_BACKEND: "vertex",
+    GOOGLE_CLOUD_PROJECT: "carevoice-demo",
+    GOOGLE_CLOUD_LOCATION: "asia-northeast1"
+  });
+
+  assert.deepEqual(config, {
+    agentMode: "gemini",
+    backend: "vertex",
+    apiKey: undefined,
+    reasoningModel: DEFAULT_GEMINI_REASONING_MODEL,
+    vertexProject: "carevoice-demo",
+    vertexLocation: "asia-northeast1"
   });
   assert.equal(isGeminiDecisionEnabled(config), true);
 });
@@ -93,7 +120,9 @@ test("Gemini agent delegates to fallback without credentials and does not call d
   const agent = new GeminiWelfareCheckAgent(new FallbackWelfareCheckAgent(), {
     config: {
       agentMode: "gemini",
-      reasoningModel: DEFAULT_GEMINI_REASONING_MODEL
+      backend: "developer",
+      reasoningModel: DEFAULT_GEMINI_REASONING_MODEL,
+      vertexLocation: DEFAULT_GEMINI_VERTEX_LOCATION
     },
     decisionGenerator: async () => {
       called = true;
@@ -115,8 +144,10 @@ test("Gemini agent uses validated decision when gemini mode and key are configur
   const agent = new GeminiWelfareCheckAgent(new FallbackWelfareCheckAgent(), {
     config: {
       agentMode: "gemini",
+      backend: "developer",
       apiKey: "test-key",
-      reasoningModel: DEFAULT_GEMINI_REASONING_MODEL
+      reasoningModel: DEFAULT_GEMINI_REASONING_MODEL,
+      vertexLocation: DEFAULT_GEMINI_VERTEX_LOCATION
     },
     decisionGenerator: async () => highRiskDecision
   });

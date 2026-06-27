@@ -1,5 +1,4 @@
 import {
-  GoogleGenAI,
   Type,
   type GenerateContentParameters,
   type GenerateContentResponse,
@@ -10,6 +9,7 @@ import {
   type AgentDecision,
   type AgentTurnRequest
 } from "@voice-agent/contracts";
+import { createGoogleGenAI, createStructuredJsonConfig } from "./geminiClient.js";
 import { type GeminiAgentConfig } from "./geminiConfig.js";
 
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
@@ -20,6 +20,13 @@ export const GEMINI_WELFARE_CHECK_SYSTEM_INSTRUCTION = [
   "You are CareVoice, a non-medical welfare-check conversation agent.",
   "You do not diagnose, prescribe, triage medical care, or claim clinical authority.",
   "Classify welfare risk into exactly one level: stable, watch, concern, high, urgent.",
+  "Risk definitions:",
+  "stable: no concerning change; normal or improving condition.",
+  "watch: mild change worth remembering, but no caregiver follow-up yet.",
+  "concern: non-urgent well-being issue such as loneliness, mood decline, or unclear adherence.",
+  "high: same-day caregiver follow-up is needed because safety may be compromised, including fall, dizziness, unsteady standing, confusion, or being alone with a physical risk.",
+  "urgent: immediate emergency indicators such as severe pain, breathing trouble, loss of consciousness, active injury, or inability to stay safe.",
+  "If a person reports a fall plus dizziness, unsteady standing, or being alone, classify at least high unless later evidence clearly lowers the risk.",
   "Every risk decision must cite concrete evidence from the transcript, profile, memory, or prior risk state.",
   "Do not behave like IVR, a form, or a checklist; ask one natural follow-up at a time.",
   "Optimize for warm, natural Japanese conversation that helps the elder keep talking comfortably.",
@@ -38,12 +45,16 @@ export function createGeminiDecisionGenerator(
   config: GeminiAgentConfig,
   generateContent?: GeminiGenerateContent
 ): GeminiDecisionGenerator {
-  if (!config.apiKey && !generateContent) {
-    throw new Error("Gemini decision generator requires GEMINI_API_KEY");
+  if (!isConfigured(config) && !generateContent) {
+    throw new Error(
+      config.backend === "vertex"
+        ? "Gemini Vertex decision generator requires GOOGLE_CLOUD_PROJECT"
+        : "Gemini decision generator requires GEMINI_API_KEY"
+    );
   }
 
   const resolvedGenerateContent =
-    generateContent ?? createSdkGenerateContent(config.apiKey);
+    generateContent ?? createSdkGenerateContent(config);
 
   return async (request) => {
     const abortController = new AbortController();
@@ -53,14 +64,14 @@ export function createGeminiDecisionGenerator(
       const response = await resolvedGenerateContent({
         model: config.reasoningModel,
         contents: buildDecisionPrompt(request),
-        config: {
+        config: createStructuredJsonConfig(config, {
           systemInstruction: GEMINI_WELFARE_CHECK_SYSTEM_INSTRUCTION,
           responseMimeType: "application/json",
           responseSchema: agentDecisionResponseSchema,
           temperature: 0.2,
           maxOutputTokens: 800,
           abortSignal: abortController.signal
-        }
+        })
       });
 
       return parseAgentDecisionJson(response.text);
@@ -72,9 +83,13 @@ export function createGeminiDecisionGenerator(
   };
 }
 
-function createSdkGenerateContent(apiKey: string | undefined): GeminiGenerateContent {
-  const ai = new GoogleGenAI({ apiKey });
+function createSdkGenerateContent(config: GeminiAgentConfig): GeminiGenerateContent {
+  const ai = createGoogleGenAI(config);
   return ai.models.generateContent.bind(ai.models);
+}
+
+function isConfigured(config: GeminiAgentConfig): boolean {
+  return config.backend === "vertex" ? Boolean(config.vertexProject) : Boolean(config.apiKey);
 }
 
 export function parseAgentDecisionJson(raw: string | undefined): AgentDecision | undefined {

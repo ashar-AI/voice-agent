@@ -1,5 +1,4 @@
 import {
-  GoogleGenAI,
   Type,
   type GenerateContentParameters,
   type GenerateContentResponse,
@@ -14,6 +13,7 @@ import type {
   TranscriptTurn
 } from "@voice-agent/contracts";
 import { z } from "zod";
+import { createGoogleGenAI, createStructuredJsonConfig } from "./geminiClient.js";
 import {
   isGeminiDecisionEnabled,
   readGeminiAgentConfig,
@@ -88,7 +88,7 @@ async function createGeminiBriefingDraft(
     return undefined;
   }
 
-  const generateContent = options.generateContent ?? createSdkGenerateContent(config.apiKey);
+  const generateContent = options.generateContent ?? createSdkGenerateContent(config);
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), DEFAULT_GEMINI_TIMEOUT_MS);
 
@@ -96,14 +96,14 @@ async function createGeminiBriefingDraft(
     const response = await generateContent({
       model: config.reasoningModel,
       contents: buildBriefingPrompt(input),
-      config: {
+      config: createStructuredJsonConfig(config, {
         systemInstruction: GEMINI_CAREGIVER_BRIEFING_SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseSchema: caregiverBriefingResponseSchema,
         temperature: 0.2,
         maxOutputTokens: 700,
         abortSignal: abortController.signal
-      }
+      })
     });
 
     return parseCaregiverBriefingDraftJson(response.text);
@@ -114,8 +114,8 @@ async function createGeminiBriefingDraft(
   }
 }
 
-function createSdkGenerateContent(apiKey: string | undefined): GeminiGenerateContent {
-  const ai = new GoogleGenAI({ apiKey });
+function createSdkGenerateContent(config: GeminiAgentConfig): GeminiGenerateContent {
+  const ai = createGoogleGenAI(config);
   return ai.models.generateContent.bind(ai.models);
 }
 
