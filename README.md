@@ -14,6 +14,56 @@ The core differentiator is that this is not an IVR or fixed questionnaire. The a
 
 Open the HTML file directly in a browser. It is standalone and does not require a build step, external assets, or network access.
 
+## Project Structure
+
+```text
+apps/api
+  Fastify API, deterministic demo engine, future Gemini/Firestore adapter host.
+
+apps/web
+  React caregiver dashboard and scenario runner.
+
+packages/contracts
+  Shared Zod schemas and TypeScript types for all service communication.
+
+docs
+  Architecture, service contracts, and demo scenarios.
+```
+
+## Local Development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the backend:
+
+```bash
+npm run dev:api
+```
+
+Run the dashboard:
+
+```bash
+npm run dev:web
+```
+
+Default local URLs:
+
+```text
+API: http://localhost:8080
+Web: http://localhost:5173
+```
+
+Validate the workspace:
+
+```bash
+npm run typecheck
+npm run build
+```
+
 ## Proposed Stack
 
 - Gemini Live API for realtime Japanese voice conversation
