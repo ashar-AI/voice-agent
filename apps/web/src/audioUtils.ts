@@ -64,6 +64,10 @@ export function createPcmAudioPlayer(sampleRate = 24000): PcmAudioPlayer {
       source.buffer = buffer;
       source.connect(audioContext.destination);
 
+      if (audioContext.state === "suspended") {
+        void audioContext.resume();
+      }
+
       scheduledAt = Math.max(scheduledAt, audioContext.currentTime);
       source.start(scheduledAt);
       scheduledAt += buffer.duration;
@@ -86,7 +90,8 @@ function float32ToPcm16(input: Float32Array): ArrayBuffer {
 }
 
 function base64ToInt16Array(base64: string): Int16Array {
-  const binary = window.atob(base64);
+  const normalized = normalizeBase64(base64);
+  const binary = window.atob(normalized);
   const bytes = new Uint8Array(binary.length);
 
   for (let index = 0; index < binary.length; index += 1) {
@@ -94,6 +99,21 @@ function base64ToInt16Array(base64: string): Int16Array {
   }
 
   return new Int16Array(bytes.buffer);
+}
+
+function normalizeBase64(value: string): string {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/").replace(/\s/g, "");
+  const remainder = base64.length % 4;
+
+  if (remainder === 0) {
+    return base64;
+  }
+
+  if (remainder === 1) {
+    throw new Error("Invalid PCM audio payload.");
+  }
+
+  return `${base64}${"=".repeat(4 - remainder)}`;
 }
 
 declare global {

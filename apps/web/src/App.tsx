@@ -294,18 +294,17 @@ export function App() {
           snapshot={snapshot}
         />
 
-        <section className="grid monitor-grid">
-          <TranscriptCard snapshot={snapshot} />
+        <section className="grid dashboard-workspace">
+          <div className="main-stack">
+            <TranscriptCard snapshot={snapshot} />
+            <HandoffCard snapshot={snapshot} />
+          </div>
           <div className="side-stack">
             <RiskCard snapshot={snapshot} />
             <EvidenceCard snapshot={snapshot} />
             <AlertCard alert={activeAlert} alertCount={snapshot.alerts.length} />
+            <MemoryCard snapshot={snapshot} />
           </div>
-        </section>
-
-        <section className="grid support-grid">
-          <HandoffCard snapshot={snapshot} />
-          <MemoryCard snapshot={snapshot} />
         </section>
 
         <details className="demo-controls">
