@@ -106,7 +106,7 @@ export function buildServer() {
   app.post("/api/agent-tools/:toolName", async (request, reply) => {
     try {
       const params = AgentToolRouteParamsSchema.parse(request.params);
-      return handleAgentToolRequest(params.toolName, request.body);
+      return await handleAgentToolRequest(params.toolName, request.body);
     } catch (error) {
       return handleRouteError(reply, error);
     }
@@ -115,7 +115,7 @@ export function buildServer() {
   app.post("/api/calls/:sessionId/complete", async (request, reply) => {
     try {
       const params = SessionParamsSchema.parse(request.params);
-      return completeCallSession(params.sessionId);
+      return await completeCallSession(params.sessionId);
     } catch (error) {
       return handleRouteError(reply, error);
     }

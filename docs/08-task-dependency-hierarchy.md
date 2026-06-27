@@ -369,7 +369,7 @@ Acceptance:
 
 ### T90: Managed Agent Briefing Bonus
 
-Status: `Ready`
+Status: `Done`
 
 Dependencies: T30, T40
 

@@ -2,6 +2,7 @@ import type {
   AlertRecord,
   CallSummary,
   CallSession,
+  CaregiverBriefing,
   CreateAlertToolInput,
   CreateAlertToolOutput,
   ConversationTurnRequest,
@@ -33,6 +34,7 @@ import {
   demoProfile,
   getScenario
 } from "./demoData.js";
+import { createCaregiverBriefing } from "./caregiverBriefingAgent.js";
 import { createWelfareCheckAgent } from "./welfareCheckAgent.js";
 
 type DemoState = {
@@ -42,6 +44,7 @@ type DemoState = {
   riskState: RiskState;
   alerts: AlertRecord[];
   latestSummary?: CallSummary;
+  latestBriefing?: CaregiverBriefing;
 };
 
 const state: DemoState = createResetState();
@@ -96,6 +99,7 @@ function snapshot(): DashboardSnapshot {
     riskState: state.riskState,
     alerts: state.alerts,
     latestSummary: state.latestSummary,
+    latestBriefing: state.latestBriefing,
     updatedAt: now()
   };
 }
@@ -131,6 +135,7 @@ export function resetDemoState(): DashboardSnapshot {
   state.riskState = next.riskState;
   state.alerts = next.alerts;
   state.latestSummary = undefined;
+  state.latestBriefing = undefined;
   const currentSnapshot = snapshot();
   emit("snapshot.updated");
   return currentSnapshot;
@@ -226,9 +231,9 @@ export function createAlertTool(input: CreateAlertToolInput): CreateAlertToolOut
   };
 }
 
-export function finalizeCallSummaryTool(
+export async function finalizeCallSummaryTool(
   input: FinalizeCallSummaryToolInput
-): FinalizeCallSummaryToolOutput {
+): Promise<FinalizeCallSummaryToolOutput> {
   assertKnownElder(input.elderId);
   const session = assertMatchingSession(input.sessionId);
 
@@ -251,6 +256,7 @@ export function finalizeCallSummaryTool(
   };
   state.latestSummary = summary;
   emit("call.completed");
+  await createAndStoreBriefing(summary);
 
   return {
     summary
@@ -365,7 +371,7 @@ export async function handleConversationTurn(
   };
 }
 
-export function completeCallSession(sessionId: string): CompleteCallResponse {
+export async function completeCallSession(sessionId: string): Promise<CompleteCallResponse> {
   if (!state.session || state.session.sessionId !== sessionId) {
     throw new Error("No active matching session");
   }
@@ -391,12 +397,36 @@ export function completeCallSession(sessionId: string): CompleteCallResponse {
   state.session = completedSession;
   state.latestSummary = summary;
   emit("call.completed");
+  await createAndStoreBriefing(summary);
 
   return {
     session: completedSession,
     summary,
     snapshot: snapshot()
   };
+}
+
+async function createAndStoreBriefing(summary: CallSummary): Promise<void> {
+  try {
+    state.latestBriefing = await createCaregiverBriefing(
+      {
+        elderId: summary.elderId,
+        sessionId: summary.sessionId,
+        transcript: state.transcript,
+        memories: state.memories,
+        riskState: state.riskState,
+        alerts: state.alerts,
+        summary
+      },
+      {
+        createId: id,
+        now
+      }
+    );
+    emit("briefing.created");
+  } catch {
+    state.latestBriefing = undefined;
+  }
 }
 
 function createOpeningTurn(scenarioId: ScenarioId): TranscriptTurn {

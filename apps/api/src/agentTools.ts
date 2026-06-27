@@ -28,10 +28,10 @@ export const AgentToolRouteParamsSchema = z.object({
   toolName: AgentToolNameSchema
 });
 
-export function handleAgentToolRequest(
+export async function handleAgentToolRequest(
   toolName: AgentToolName,
   body: unknown
-): AgentToolOutput {
+): Promise<AgentToolOutput> {
   const normalizedBody = normalizeToolBody(body);
 
   switch (toolName) {
@@ -57,7 +57,7 @@ export function handleAgentToolRequest(
       );
     case "finalize_call_summary":
       return FinalizeCallSummaryToolOutputSchema.parse(
-        finalizeCallSummaryTool(FinalizeCallSummaryToolInputSchema.parse(normalizedBody))
+        await finalizeCallSummaryTool(FinalizeCallSummaryToolInputSchema.parse(normalizedBody))
       );
   }
 }

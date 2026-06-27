@@ -11,8 +11,17 @@ import {
   UpdateCallStateToolOutputSchema
 } from "@voice-agent/contracts";
 import { DEMO_ELDER_ID } from "./demoData.js";
-import { getDashboardSnapshot, resetDemoState } from "./demoEngine.js";
+import {
+  getDashboardSnapshot,
+  resetDemoState,
+  subscribeDashboardEvents
+} from "./demoEngine.js";
 import { buildServer } from "./server.js";
+
+test.beforeEach(() => {
+  process.env.AGENT_MODE = "fallback";
+  delete process.env.GEMINI_API_KEY;
+});
 
 test("agent profile tool returns the elder profile", async (t) => {
   resetDemoState();
@@ -126,6 +135,11 @@ test("agent final summary tool stores the summary and completes the call", async
   const app = buildServer();
   t.after(async () => app.close());
   const started = await startScenario(app);
+  const eventTypes: string[] = [];
+  const unsubscribe = subscribeDashboardEvents((event) => {
+    eventTypes.push(event.eventType);
+  });
+  t.after(unsubscribe);
 
   const response = await app.inject({
     method: "POST",
@@ -146,8 +160,11 @@ test("agent final summary tool stores the summary and completes the call", async
   const snapshot = getDashboardSnapshot();
   assert.match(output.summary.id, /^summary_/);
   assert.equal(snapshot.latestSummary?.id, output.summary.id);
+  assert.equal(snapshot.latestBriefing?.sessionId, started.session.sessionId);
+  assert.equal(snapshot.latestBriefing?.evidenceBullets.length, 3);
   assert.equal(snapshot.session?.status, "completed");
   assert.equal(snapshot.session?.completedAt !== undefined, true);
+  assert.deepEqual(eventTypes, ["call.completed", "briefing.created"]);
 });
 
 async function startScenario(app: ReturnType<typeof buildServer>) {
