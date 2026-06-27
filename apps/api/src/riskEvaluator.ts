@@ -1,11 +1,11 @@
 import type {
+  AgentTurnResponse,
   AlertRecord,
   ElderProfile,
   MemoryItem,
   RiskLevel,
   RiskSignal,
-  RiskState,
-  TranscriptTurn
+  RiskState
 } from "@voice-agent/contracts";
 
 type EvaluationInput = {
@@ -21,7 +21,7 @@ type EvaluationInput = {
 
 type EvaluationResult = {
   riskState: RiskState;
-  agentTurn: Omit<TranscriptTurn, "id" | "timestamp">;
+  agentTurn: AgentTurnResponse["agentTurn"];
   newMemory?: Omit<MemoryItem, "id" | "observedAt">;
   alert?: Omit<AlertRecord, "id" | "createdAt" | "acknowledged">;
 };

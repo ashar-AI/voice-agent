@@ -96,7 +96,7 @@ export function buildServer() {
   app.post("/api/conversation/turn", async (request, reply) => {
     try {
       const input = ConversationTurnRequestSchema.parse(request.body);
-      return handleConversationTurn(input);
+      return await handleConversationTurn(input);
     } catch (error) {
       return handleRouteError(reply, error);
     }

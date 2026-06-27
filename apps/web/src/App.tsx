@@ -32,13 +32,30 @@ const responsePresets: Record<ScenarioId, { title: string; description: string }
   },
   loneliness_decline: {
     title: "Social isolation signal",
-    description: "Low urgency concern; suggest a family follow-up."
+    description: "Non-urgent concern; suggest a family follow-up."
   },
   fall_dizziness_escalation: {
     title: "Safety concern",
     description: "Fall and dizziness signals; notify caregiver with evidence."
   }
 };
+
+function formatClock(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
+}
 
 export function App() {
   const [scenarios, setScenarios] = useState<DemoScenario[]>([]);
@@ -63,16 +80,14 @@ export function App() {
           getScenarios(),
           getSnapshot(ELDER_ID)
         ]);
+        const nextSelectedScenario =
+          nextScenarios.find((scenario) => scenario.scenarioId === selectedScenarioId) ??
+          nextScenarios[0];
+
         setScenarios(nextScenarios);
         setSnapshot(nextSnapshot);
-        setCustomTextJa(
-          nextScenarios.find((scenario) => scenario.scenarioId === selectedScenarioId)
-            ?.elderLineJa ?? ""
-        );
-        setCustomTextEn(
-          nextScenarios.find((scenario) => scenario.scenarioId === selectedScenarioId)
-            ?.elderLineEn ?? ""
-        );
+        setCustomTextJa(nextSelectedScenario?.elderLineJa ?? "");
+        setCustomTextEn(nextSelectedScenario?.elderLineEn ?? "");
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : "Failed to load workspace");
       }
@@ -125,7 +140,7 @@ export function App() {
     const activeSession = snapshot?.session?.status === "active" ? snapshot.session : undefined;
 
     if (!activeSession) {
-      setError("Start a call before sending an elder response.");
+      setError("There is no live call receiving demo input.");
       return;
     }
 
@@ -151,7 +166,7 @@ export function App() {
     const activeSession = snapshot?.session?.status === "active" ? snapshot.session : undefined;
 
     if (!activeSession) {
-      setError("There is no active call to complete.");
+      setError("There is no live call to finish.");
       return;
     }
 
@@ -184,18 +199,14 @@ export function App() {
   if (!snapshot) {
     return (
       <main className="shell">
-        <section className="loading">Loading caregiver workspace...</section>
+        <section className="loading">Loading caregiver monitor...</section>
       </main>
     );
   }
 
   const activeAlert = snapshot.alerts[0];
   const activeSession = snapshot.session?.status === "active" ? snapshot.session : undefined;
-  const lastUpdated = new Intl.DateTimeFormat("en", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  }).format(new Date(snapshot.updatedAt));
+  const lastUpdated = formatClock(snapshot.updatedAt);
 
   return (
     <main className="shell">
@@ -204,11 +215,10 @@ export function App() {
           <span className="brand-mark">CV</span>
           <div>
             <strong>CareVoice</strong>
-            <span>Caregiver command center</span>
+            <span>Passive caregiver monitor</span>
           </div>
         </div>
         <div className="status-row">
-          <span>{snapshot.session ? `Check-in ${snapshot.session.status}` : "No active check-in"}</span>
           <span>{isRealtimeConnected ? "Live updates connected" : "Live updates reconnecting"}</span>
           <span>Updated {lastUpdated}</span>
         </div>
@@ -216,20 +226,20 @@ export function App() {
 
       <header className="hero">
         <div>
-          <p className="eyebrow">Today&apos;s welfare status</p>
+          <p className="eyebrow">Current welfare view</p>
           <h1>{snapshot.profile.displayName}</h1>
           <p className="hero-copy">
-            Daily voice check-ins track well-being, memory context, and early safety signals
-            so family and caregivers know when to follow up.
+            Voice check-ins stream into this dashboard so family and care teams can watch
+            status, evidence, and recommended follow-up without driving the conversation.
           </p>
           <div className="patient-meta">
             <span>{snapshot.profile.age} years old</span>
             <span>{snapshot.profile.livesAlone ? "Lives alone" : "Lives with support"}</span>
-            <span>Emergency contact: {snapshot.profile.emergencyContactName}</span>
+            <span>{snapshot.profile.emergencyContactName}</span>
           </div>
         </div>
         <div className={`risk-meter risk-${snapshot.riskState.riskLevel}`}>
-          <span>Well-being risk</span>
+          <span>Risk now</span>
           <strong>{snapshot.riskState.riskScore}</strong>
           <em>{riskLabels[snapshot.riskState.riskLevel]}</em>
         </div>
@@ -237,49 +247,39 @@ export function App() {
 
       {error ? <div className="error">{error}</div> : null}
 
-      <section className="grid overview-grid">
-        <ProfileCard snapshot={snapshot} />
+      <section className="grid monitor-grid" aria-label="Live caregiver monitor">
+        <CallStatusCard snapshot={snapshot} />
         <RiskCard snapshot={snapshot} />
         <AlertCard alert={activeAlert} />
       </section>
 
-      <section className="panel console-panel">
+      <section className="grid detail-grid">
+        <TranscriptCard snapshot={snapshot} />
+        <div className="side-stack">
+          <ReasoningCard snapshot={snapshot} />
+          <OpenQuestionsCard snapshot={snapshot} />
+          <BriefingCard snapshot={snapshot} />
+        </div>
+      </section>
+
+      <section className="grid context-grid">
+        <MemoryCard snapshot={snapshot} />
+        <SummaryCard snapshot={snapshot} />
+      </section>
+
+      <section className="panel demo-controls" aria-label="Demo controls">
         <div className="section-title">
           <div>
-            <h2>Live Check-In Console</h2>
-            <p>Start the scheduled call, capture the elder response, and let the platform update risk, memory, and alerts.</p>
+            <span className="card-kicker">Demo controls</span>
+            <h2>Local backup input</h2>
+            <p>
+              Sample scenarios and manual text remain available for demos when the voice
+              channel is not driving the monitor.
+            </p>
           </div>
           <button className="secondary" disabled={isBusy} onClick={() => void reset()}>
-            Clear Session
+            Clear demo data
           </button>
-        </div>
-
-        <div className="console-flow" aria-label="Check-in workflow">
-          <div className={snapshot.session ? "flow-node done" : "flow-node"}>
-            <span>1</span>
-            <strong>Call started</strong>
-            <em>Agent opens from memory</em>
-          </div>
-          <div className={snapshot.transcript.some((turn) => turn.speaker === "elder") ? "flow-node done" : "flow-node"}>
-            <span>2</span>
-            <strong>Response captured</strong>
-            <em>Utterance is evaluated</em>
-          </div>
-          <div className={snapshot.riskState.signals.length > 0 ? "flow-node done" : "flow-node"}>
-            <span>3</span>
-            <strong>Risk updated</strong>
-            <em>Next goal is selected</em>
-          </div>
-          <div className={snapshot.session?.status === "completed" ? "flow-node done" : "flow-node"}>
-            <span>4</span>
-            <strong>Summary ready</strong>
-            <em>Caregiver follow-up</em>
-          </div>
-        </div>
-
-        <div className="operator-note">
-          Input source: select a sample elder response or edit it manually.
-          The voice channel will send the same payload automatically.
         </div>
 
         <div className="scenario-grid">
@@ -302,7 +302,7 @@ export function App() {
 
         <div className="input-row">
           <label>
-            Captured elder response in Japanese
+            Sample elder response in Japanese
             <textarea
               value={customTextJa}
               onChange={(event) => setCustomTextJa(event.target.value)}
@@ -321,37 +321,39 @@ export function App() {
 
         <div className="button-row">
           <button className="primary" disabled={isBusy || !selectedScenario} onClick={() => void startSelectedCall()}>
-            {isBusy ? "Working..." : "Start Check-In"}
+            {isBusy ? "Updating..." : "Begin sample call"}
           </button>
           <button className="primary" disabled={isBusy || !customTextJa || !activeSession} onClick={() => void sendElderResponse()}>
-            Process Response
+            Send sample response
           </button>
           <button className="secondary" disabled={isBusy || !activeSession} onClick={() => void completeActiveCall()}>
-            Complete Check-In
+            Finish sample call
           </button>
-        </div>
-      </section>
-
-      <section className="grid detail-grid">
-        <TranscriptCard snapshot={snapshot} />
-        <div className="side-stack">
-          <MemoryCard snapshot={snapshot} />
-          <SummaryCard snapshot={snapshot} />
         </div>
       </section>
     </main>
   );
 }
 
-function ProfileCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+function CallStatusCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+  const session = snapshot.session;
+  const statusText =
+    session?.status === "active"
+      ? "Live check-in in progress"
+      : session?.status === "completed"
+        ? "Latest check-in completed"
+        : "Waiting for next check-in";
+  const transcriptCount = snapshot.transcript.length;
+  const lastTurn = snapshot.transcript[transcriptCount - 1];
+
   return (
-    <article className="card">
-      <span className="card-kicker">Care recipient</span>
-      <h2>Home context</h2>
+    <article className="card call-status">
+      <span className="card-kicker">Call status</span>
+      <h2>{statusText}</h2>
       <dl className="facts">
-        <div><dt>Age</dt><dd>{snapshot.profile.age}</dd></div>
-        <div><dt>Lives alone</dt><dd>{snapshot.profile.livesAlone ? "Yes" : "No"}</dd></div>
-        <div><dt>Contact</dt><dd>{snapshot.profile.emergencyContactName}</dd></div>
+        <div><dt>Session</dt><dd>{session?.sessionId ?? "Not started"}</dd></div>
+        <div><dt>Transcript turns</dt><dd>{transcriptCount}</dd></div>
+        <div><dt>Last activity</dt><dd>{lastTurn ? formatClock(lastTurn.timestamp) : "None yet"}</dd></div>
       </dl>
     </article>
   );
@@ -359,21 +361,26 @@ function ProfileCard({ snapshot }: { snapshot: DashboardSnapshot }) {
 
 function RiskCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
-    <article className="card">
-      <span className="card-kicker">AI reasoning state</span>
-      <h2>{snapshot.riskState.nextGoal}</h2>
-      <div className="chip-row">
-        {snapshot.riskState.knownFacts.map((fact) => (
-          <span className="chip" key={fact}>{fact}</span>
-        ))}
+    <article className={`card risk-card risk-surface-${snapshot.riskState.riskLevel}`}>
+      <span className="card-kicker">Risk and evidence</span>
+      <h2>{riskLabels[snapshot.riskState.riskLevel]} risk</h2>
+      <div className="risk-score-line">
+        <strong>{snapshot.riskState.riskScore}</strong>
+        <span>{snapshot.riskState.alertRequired ? "Alert threshold met" : "No alert threshold"}</span>
       </div>
-      {snapshot.riskState.uncertainties.length > 0 ? (
-        <div className="uncertainty-list">
-          <strong>Open questions</strong>
-          {snapshot.riskState.uncertainties.map((item) => <span key={item}>{item}</span>)}
+      {snapshot.riskState.signals.length > 0 ? (
+        <div className="signal-list">
+          {snapshot.riskState.signals.map((signal) => (
+            <div className={`signal risk-border-${signal.severity}`} key={signal.id}>
+              <strong>{signal.label}</strong>
+              <p>{signal.evidence}</p>
+              <span>{riskLabels[signal.severity]} evidence</span>
+            </div>
+          ))}
         </div>
-      ) : null}
-      <p className="muted">{snapshot.riskState.recommendedAction}</p>
+      ) : (
+        <p className="muted">No risk signals detected in the current check-in.</p>
+      )}
     </article>
   );
 }
@@ -382,7 +389,7 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
   if (!alert) {
     return (
       <article className="card calm">
-        <span className="card-kicker">Alert center</span>
+        <span className="card-kicker">Alert</span>
         <h2>No active alert</h2>
         <p className="muted">Caregiver notification stays quiet until evidence crosses threshold.</p>
       </article>
@@ -390,10 +397,12 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
   }
 
   return (
-    <article className="card alert">
-      <span className="card-kicker">Alert center</span>
+    <article className={`card alert risk-surface-${alert.severity}`}>
+      <span className="card-kicker">Alert</span>
       <h2>{alert.title}</h2>
       <p>{alert.reason}</p>
+      <strong className="action-label">Suggested follow-up</strong>
+      <p>{alert.suggestedAction}</p>
       <ul>
         {alert.evidence.map((item) => <li key={item}>{item}</li>)}
       </ul>
@@ -401,18 +410,54 @@ function AlertCard({ alert }: { alert: DashboardSnapshot["alerts"][number] | und
   );
 }
 
+function ReasoningCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+  return (
+    <article className="card">
+      <span className="card-kicker">AI reasoning state</span>
+      <h2>{snapshot.riskState.nextGoal}</h2>
+      <p className="muted">{snapshot.riskState.recommendedAction}</p>
+      <div className="chip-row">
+        {snapshot.riskState.knownFacts.map((fact) => (
+          <span className="chip" key={fact}>{fact}</span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function OpenQuestionsCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+  return (
+    <article className="card questions">
+      <span className="card-kicker">Open questions</span>
+      {snapshot.riskState.uncertainties.length > 0 ? (
+        <div className="question-list">
+          {snapshot.riskState.uncertainties.map((item) => <p key={item}>{item}</p>)}
+        </div>
+      ) : (
+        <>
+          <h2>No unresolved questions</h2>
+          <p className="muted">The current evidence is enough for the recommended state.</p>
+        </>
+      )}
+    </article>
+  );
+}
+
 function TranscriptCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   return (
     <article className="card transcript">
-      <span className="card-kicker">Live check-in</span>
-      <h2>Conversation transcript</h2>
+      <span className="card-kicker">Live transcript</span>
+      <h2>Conversation stream</h2>
       {snapshot.transcript.length === 0 ? (
-        <p className="muted">Start the scheduled check-in to create the live transcript.</p>
+        <p className="muted">The transcript will appear as the scheduled check-in runs.</p>
       ) : (
         <div className="turn-list">
           {snapshot.transcript.map((turn) => (
             <div className={`turn ${turn.speaker}`} key={turn.id}>
-              <strong>{turn.speaker}</strong>
+              <div className="turn-meta">
+                <strong>{turn.speaker}</strong>
+                <span>{formatClock(turn.timestamp)}</span>
+              </div>
               <p lang="ja">{turn.textJa}</p>
               {turn.textEn ? <span>{turn.textEn}</span> : null}
             </div>
@@ -431,7 +476,10 @@ function MemoryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
       <div className="memory-list">
         {snapshot.memories.map((memory) => (
           <div className="memory-item" key={memory.id}>
-            <strong>{memory.category}</strong>
+            <div className="memory-meta">
+              <strong>{memory.category}</strong>
+              <span>{formatDateTime(memory.observedAt)}</span>
+            </div>
             <p>{memory.text}</p>
             <span>{memory.importance} importance</span>
           </div>
@@ -445,21 +493,50 @@ function SummaryCard({ snapshot }: { snapshot: DashboardSnapshot }) {
   if (!snapshot.latestSummary) {
     return (
       <article className="card">
-        <span className="card-kicker">Post-call summary</span>
+        <span className="card-kicker">Summary</span>
         <h2>Pending</h2>
-        <p className="muted">Complete the call to create a final summary and follow-up recommendation.</p>
+        <p className="muted">A final summary and follow-up recommendation will appear after the call closes.</p>
       </article>
     );
   }
 
   return (
     <article className="card">
-      <span className="card-kicker">Post-call summary</span>
+      <span className="card-kicker">Summary</span>
       <h2>{snapshot.latestSummary.summary}</h2>
       <p className="muted">{snapshot.latestSummary.recommendedFollowUp}</p>
       <div className="chip-row">
         {snapshot.latestSummary.keyEvidence.map((item) => <span className="chip" key={item}>{item}</span>)}
       </div>
+    </article>
+  );
+}
+
+function BriefingCard({ snapshot }: { snapshot: DashboardSnapshot }) {
+  if (!snapshot.latestBriefing) {
+    return (
+      <article className="card briefing">
+        <span className="card-kicker">Future briefing</span>
+        <h2>Awaiting family-ready wording</h2>
+        <p className="muted">When the contract supplies a caregiver briefing, it will appear here with evidence and safety wording.</p>
+      </article>
+    );
+  }
+
+  return (
+    <article className="card briefing">
+      <span className="card-kicker">Future briefing</span>
+      <h2>{snapshot.latestBriefing.briefing}</h2>
+      <p className="muted">{snapshot.latestBriefing.recommendedFamilyFollowUp}</p>
+      <div className="signal-list compact">
+        {snapshot.latestBriefing.evidenceBullets.map((item) => (
+          <div className="signal" key={item}>
+            <p>{item}</p>
+          </div>
+        ))}
+      </div>
+      <strong className="action-label">Safety wording</strong>
+      <p>{snapshot.latestBriefing.safetyWording}</p>
     </article>
   );
 }

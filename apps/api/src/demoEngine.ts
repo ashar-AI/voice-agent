@@ -21,7 +21,7 @@ import {
   demoProfile,
   getScenario
 } from "./demoData.js";
-import { evaluateUserTurn } from "./riskEvaluator.js";
+import { createWelfareCheckAgent } from "./welfareCheckAgent.js";
 
 type DemoState = {
   memories: MemoryItem[];
@@ -34,6 +34,7 @@ type DemoState = {
 
 const state: DemoState = createResetState();
 const listeners = new Set<(event: DashboardEvent) => void>();
+const welfareCheckAgent = createWelfareCheckAgent();
 
 function createResetState(): DemoState {
   return {
@@ -154,9 +155,9 @@ export function startScenario(input: StartScenarioRequest): StartScenarioRespons
   };
 }
 
-export function handleConversationTurn(
+export async function handleConversationTurn(
   input: ConversationTurnRequest
-): ConversationTurnResponse {
+): Promise<ConversationTurnResponse> {
   if (!state.session || state.session.sessionId !== input.sessionId) {
     throw new Error("No active matching session");
   }
@@ -164,23 +165,26 @@ export function handleConversationTurn(
   const elderTurn = transcriptTurn("elder", input.textJa, input.textEn);
   state.transcript.push(elderTurn);
 
-  const evaluation = evaluateUserTurn({
+  const agentResult = await welfareCheckAgent.createTurn({
     elderId: input.elderId,
-    textJa: input.textJa,
-    textEn: input.textEn,
+    sessionId: input.sessionId,
     profile: demoProfile,
     memories: state.memories,
+    transcript: state.transcript,
     previousRiskState: state.riskState,
+    latestUserTurn: elderTurn,
+    channel: "text_demo"
+  }, {
     createId: id,
     now
   });
 
-  state.riskState = evaluation.riskState;
+  state.riskState = agentResult.riskState;
 
-  if (evaluation.newMemory) {
+  if (agentResult.proposedMemory) {
     state.memories = [
       {
-        ...evaluation.newMemory,
+        ...agentResult.proposedMemory,
         id: id("mem"),
         observedAt: now()
       },
@@ -188,10 +192,13 @@ export function handleConversationTurn(
     ];
   }
 
-  if (evaluation.alert && !state.alerts.some((item) => item.title === evaluation.alert?.title)) {
+  if (
+    agentResult.proposedAlert &&
+    !state.alerts.some((item) => item.title === agentResult.proposedAlert?.title)
+  ) {
     state.alerts = [
       {
-        ...evaluation.alert,
+        ...agentResult.proposedAlert,
         id: id("alert"),
         createdAt: now(),
         acknowledged: false
@@ -200,7 +207,7 @@ export function handleConversationTurn(
     ];
   }
 
-  const agentTurn = materializeTranscriptTurn(evaluation.agentTurn);
+  const agentTurn = materializeTranscriptTurn(agentResult.agentTurn);
   state.transcript.push(agentTurn);
   emit(state.riskState.alertRequired ? "alert.created" : "risk.updated");
 

@@ -121,7 +121,7 @@ Acceptance:
 
 ### T20: Agent Adapter Boundary
 
-Status: `Ready`
+Status: `Done`
 
 Dependencies: T10
 
@@ -147,7 +147,7 @@ Acceptance:
 
 ### T30: Backend Tool Handlers
 
-Status: `Blocked`
+Status: `Ready`
 
 Dependencies: T10, T20
 
@@ -177,7 +177,7 @@ Acceptance:
 
 ### T40: Gemini Decision Adapter
 
-Status: `Blocked`
+Status: `Ready`
 
 Dependencies: T10, T20
 
@@ -205,7 +205,7 @@ Acceptance:
 
 ### T50: Passive Caregiver Dashboard
 
-Status: `Ready`
+Status: `Done`
 
 Dependencies: T10
 
@@ -345,7 +345,7 @@ Acceptance:
 
 ### T82: Backup Text-Mode Demo
 
-Status: `Blocked`
+Status: `Ready`
 
 Dependencies: T20, T50
 
