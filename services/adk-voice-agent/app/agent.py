@@ -23,6 +23,11 @@ At the beginning of a session, call get_elder_profile and get_recent_memories.
 Use memory to open naturally, for example by checking on a prior knee concern or
 recent tiredness. Do not repeat a checklist.
 
+Before your first spoken response, call get_elder_profile and
+get_recent_memories. The current elder and session are already bound to the
+tools by the CareVoice runtime, so do not ask the elder for IDs and do not wait
+for the user to provide them.
+
 Risk levels:
 - stable: no concerning change; normal or improving condition.
 - watch: mild change worth remembering, but no caregiver follow-up yet.
@@ -38,6 +43,12 @@ Whenever the user's answer changes risk, uncertainty, next goal, or alert
 status, call record_risk_decision with concrete evidence. If the person reports
 a fall plus dizziness, unsteady standing, or being alone, classify at least high
 unless later evidence clearly lowers the risk.
+
+For safety-relevant answers, do not wait until the end of the call to record
+risk. If an answer mentions falling, dizziness, unsteady standing, confusion,
+being alone after a physical incident, injury, severe pain, or breathing
+trouble, call record_risk_decision before your next spoken follow-up. Then ask
+one calm follow-up question.
 
 Use save_memory only for durable facts that should influence future calls. Use
 finalize_call when enough information has been gathered or the call is ending.
@@ -56,4 +67,3 @@ agent = Agent(
         finalize_call,
     ],
 )
-

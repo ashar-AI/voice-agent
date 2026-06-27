@@ -17,9 +17,23 @@ class Settings:
     ).rstrip("/")
     elder_id: str = os.getenv("CAREVOICE_ELDER_ID", "sato_001")
     live_model: str = os.getenv(
-        "CAREVOICE_LIVE_MODEL", "gemini-live-2.5-flash-native-audio"
+        "CAREVOICE_LIVE_MODEL", "gemini-3.1-flash-live-preview"
+    )
+    use_vertex: bool = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "false").lower() == "true"
+    vertex_location: str = os.getenv("CAREVOICE_VERTEX_LOCATION", "us-central1")
+    api_key: str | None = (
+        os.getenv("GOOGLE_API_KEY")
+        or os.getenv("GEMINI_API_KEY")
+        or os.getenv("CAREVOICE_GEMINI_API_KEY")
     )
 
 
 settings = Settings()
 
+if settings.use_vertex:
+    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+    os.environ["GOOGLE_CLOUD_LOCATION"] = settings.vertex_location
+else:
+    os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
+    if settings.api_key:
+        os.environ.setdefault("GOOGLE_API_KEY", settings.api_key)

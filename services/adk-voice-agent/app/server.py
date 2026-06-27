@@ -15,6 +15,7 @@ from google.genai import types
 
 from .agent import agent
 from .config import settings
+from .carevoice_tools import bind_call_context, reset_call_context
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -68,10 +69,20 @@ async def websocket_endpoint(
         )
 
     live_request_queue = LiveRequestQueue()
+    context_tokens = bind_call_context(user_id, session_id)
 
     async def upstream_task() -> None:
         while True:
-            message = await websocket.receive()
+            try:
+                message = await websocket.receive()
+            except WebSocketDisconnect:
+                logger.info("ADK voice client disconnected: %s/%s", user_id, session_id)
+                return
+            except RuntimeError as error:
+                if "Cannot call \"receive\" once a disconnect message has been received" in str(error):
+                    logger.info("ADK voice client disconnected: %s/%s", user_id, session_id)
+                    return
+                raise
 
             if "bytes" in message:
                 live_request_queue.send_realtime(
@@ -112,11 +123,25 @@ async def websocket_endpoint(
             )
 
     try:
-        await asyncio.gather(upstream_task(), downstream_task())
+        upstream = asyncio.create_task(upstream_task())
+        downstream = asyncio.create_task(downstream_task())
+        done, pending = await asyncio.wait(
+            {upstream, downstream},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+
+        for task in done:
+            exception = task.exception()
+            if exception:
+                raise exception
+
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
     except WebSocketDisconnect:
         logger.info("ADK voice client disconnected: %s/%s", user_id, session_id)
     except Exception:
         logger.exception("ADK voice session failed: %s/%s", user_id, session_id)
     finally:
         live_request_queue.close()
-
+        reset_call_context(context_tokens)
