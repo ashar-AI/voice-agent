@@ -19,15 +19,27 @@ Contracts live in `packages/contracts`. Frontend and backend must import shared 
 - `RiskState`
 - `AlertRecord`
 - `CallSummary`
+- `CaregiverBriefing`
 - `DashboardSnapshot`
 - `DashboardEvent`
-
-Planned additions:
-
 - `AgentDecision`
 - `AgentTurnRequest`
 - `AgentTurnResponse`
 - tool input/output schemas
+
+## Risk Levels
+
+Use the locked five-level product vocabulary:
+
+```text
+stable
+watch
+concern
+high
+urgent
+```
+
+Do not reintroduce `low` or `medium` as risk levels. Those words may still exist for unrelated fields such as memory importance.
 
 ## Current HTTP API
 
@@ -56,6 +68,8 @@ save_memory
 create_alert
 finalize_call_summary
 ```
+
+Each tool has a shared input and output schema in `packages/contracts`.
 
 Internal HTTP route:
 

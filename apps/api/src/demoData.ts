@@ -57,7 +57,7 @@ export const demoScenarios: DemoScenario[] = [
     purpose: "Shows memory and continuity without creating a false alert.",
     elderLineJa: "今日はまあまあです。膝は少し良くなりました。",
     elderLineEn: "I am doing okay today. My knee is a little better.",
-    expectedOutcome: "No alert. Knee memory is updated and the dashboard remains stable."
+    expectedOutcome: "Stable. Knee memory is updated and the dashboard does not alert."
   },
   {
     scenarioId: "loneliness_decline",
@@ -65,7 +65,7 @@ export const demoScenarios: DemoScenario[] = [
     purpose: "Shows non-medical well-being detection and soft follow-up.",
     elderLineJa: "別に大丈夫です。ただ、最近あまり人と話していません。",
     elderLineEn: "I am not really in trouble. I just have not talked to people much lately.",
-    expectedOutcome: "Medium concern. Suggest a family follow-up without urgent escalation."
+    expectedOutcome: "Concern. Suggest a family follow-up without urgent escalation."
   },
   {
     scenarioId: "fall_dizziness_escalation",
@@ -88,7 +88,7 @@ export function getScenario(scenarioId: ScenarioId): DemoScenario {
 
 export function createInitialRiskState(): RiskState {
   return {
-    riskLevel: "low",
+    riskLevel: "stable",
     riskScore: 18,
     knownFacts: ["Lives alone", "Had knee pain last week", "Sounded tired yesterday"],
     uncertainties: ["Today's mobility", "Today's mood", "Medication adherence"],

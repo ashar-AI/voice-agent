@@ -65,9 +65,9 @@ export function evaluateUserTurn(input: EvaluationInput): EvaluationResult {
     score += 26;
   }
 
-  if (hasPain) {
+  if (hasPain && !hasImprovement) {
     knownFacts.push("Reported pain or possible injury");
-    signals.push({ label: "Pain or injury", severity: hasFall ? "high" : "medium", evidence: input.textJa });
+    signals.push({ label: "Pain or injury", severity: hasFall ? "high" : "watch", evidence: input.textJa });
     score += hasFall ? 14 : 8;
   }
 
@@ -78,7 +78,7 @@ export function evaluateUserTurn(input: EvaluationInput): EvaluationResult {
 
   if (hasLoneliness) {
     knownFacts.push("Reduced recent social contact");
-    signals.push({ label: "Reduced social contact", severity: "medium", evidence: input.textJa });
+    signals.push({ label: "Reduced social contact", severity: "concern", evidence: input.textJa });
     score += 28;
   }
 
@@ -102,7 +102,7 @@ export function evaluateUserTurn(input: EvaluationInput): EvaluationResult {
     /knee|膝/i.test(memory.text)
   );
 
-  if (rememberedKneePain && (hasFall || hasDizziness || hasPain)) {
+  if (rememberedKneePain && (hasFall || hasDizziness || (hasPain && !hasImprovement))) {
     knownFacts.push("Recent knee pain memory increases mobility concern");
     score += 6;
   }
@@ -176,7 +176,7 @@ function lonelinessResult(
 ): EvaluationResult {
   return {
     riskState: {
-      riskLevel: "medium",
+      riskLevel: "concern",
       riskScore,
       knownFacts: dedupe(knownFacts),
       uncertainties: dedupe(uncertainties),
@@ -209,7 +209,7 @@ function lowRiskResult(
 ): EvaluationResult {
   return {
     riskState: {
-      riskLevel: "low",
+      riskLevel: "stable",
       riskScore,
       knownFacts: dedupe(knownFacts),
       uncertainties: dedupe(uncertainties),
@@ -258,10 +258,14 @@ function getRiskLevel(score: number, signals: SignalDraft[]): RiskLevel {
   }
 
   if (score >= 40) {
-    return "medium";
+    return "concern";
   }
 
-  return "low";
+  if (score >= 25) {
+    return "watch";
+  }
+
+  return "stable";
 }
 
 function clamp(value: number, min: number, max: number): number {

@@ -18,8 +18,9 @@ import {
 const ELDER_ID = "sato_001";
 
 const riskLabels: Record<RiskLevel, string> = {
-  low: "Low",
-  medium: "Medium",
+  stable: "Stable",
+  watch: "Watch",
+  concern: "Concern",
   high: "High",
   urgent: "Urgent"
 };

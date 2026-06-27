@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const RiskLevelSchema = z.enum(["low", "medium", "high", "urgent"]);
+export const RiskLevelSchema = z.enum(["stable", "watch", "concern", "high", "urgent"]);
 export type RiskLevel = z.infer<typeof RiskLevelSchema>;
 
 export const CallStatusSchema = z.enum(["idle", "active", "completed"]);
@@ -98,6 +98,18 @@ export const CallSummarySchema = z.object({
 });
 export type CallSummary = z.infer<typeof CallSummarySchema>;
 
+export const CaregiverBriefingSchema = z.object({
+  id: z.string(),
+  elderId: z.string(),
+  sessionId: z.string(),
+  briefing: z.string(),
+  evidenceBullets: z.array(z.string()),
+  recommendedFamilyFollowUp: z.string(),
+  safetyWording: z.string(),
+  createdAt: z.string()
+});
+export type CaregiverBriefing = z.infer<typeof CaregiverBriefingSchema>;
+
 export const CallSessionSchema = z.object({
   sessionId: z.string(),
   elderId: z.string(),
@@ -116,6 +128,7 @@ export const DashboardSnapshotSchema = z.object({
   riskState: RiskStateSchema,
   alerts: z.array(AlertRecordSchema),
   latestSummary: CallSummarySchema.optional(),
+  latestBriefing: CaregiverBriefingSchema.optional(),
   updatedAt: z.string()
 });
 export type DashboardSnapshot = z.infer<typeof DashboardSnapshotSchema>;
@@ -167,13 +180,64 @@ export type CompleteCallResponse = z.infer<typeof CompleteCallResponseSchema>;
 
 export const DashboardEventSchema = z.object({
   eventId: z.string(),
-  eventType: z.enum(["snapshot.updated", "risk.updated", "alert.created", "call.completed"]),
+  eventType: z.enum([
+    "snapshot.updated",
+    "risk.updated",
+    "alert.created",
+    "call.completed",
+    "briefing.created"
+  ]),
   elderId: z.string(),
   sessionId: z.string().optional(),
   payload: DashboardSnapshotSchema,
   emittedAt: z.string()
 });
 export type DashboardEvent = z.infer<typeof DashboardEventSchema>;
+
+export const AgentDecisionSchema = z.object({
+  riskLevel: RiskLevelSchema,
+  confidence: z.number().min(0).max(1),
+  evidence: z.array(z.string()),
+  openQuestions: z.array(z.string()),
+  nextGoal: z.string(),
+  recommendedAction: z.string(),
+  shouldContinueConversation: z.boolean(),
+  shouldCreateAlert: z.boolean(),
+  shouldFinalizeCall: z.boolean()
+});
+export type AgentDecision = z.infer<typeof AgentDecisionSchema>;
+
+export const AgentTurnRequestSchema = z.object({
+  elderId: z.string(),
+  sessionId: z.string().optional(),
+  profile: ElderProfileSchema,
+  memories: z.array(MemoryItemSchema),
+  transcript: z.array(TranscriptTurnSchema),
+  previousRiskState: RiskStateSchema,
+  latestUserTurn: TranscriptTurnSchema.optional(),
+  channel: z.enum(["text_demo", "browser_voice", "phone"])
+});
+export type AgentTurnRequest = z.infer<typeof AgentTurnRequestSchema>;
+
+export const AgentTurnResponseSchema = z.object({
+  decision: AgentDecisionSchema,
+  agentTurn: z.object({
+    speaker: z.literal("ai"),
+    textJa: z.string(),
+    textEn: z.string().optional()
+  }),
+  proposedMemory: MemoryItemSchema.omit({ id: true, observedAt: true }).optional(),
+  proposedAlert: AlertRecordSchema.omit({
+    id: true,
+    createdAt: true,
+    acknowledged: true
+  }).optional(),
+  proposedSummary: CallSummarySchema.omit({
+    id: true,
+    createdAt: true
+  }).optional()
+});
+export type AgentTurnResponse = z.infer<typeof AgentTurnResponseSchema>;
 
 export const AgentToolNameSchema = z.enum([
   "get_elder_profile",
@@ -184,6 +248,100 @@ export const AgentToolNameSchema = z.enum([
   "finalize_call_summary"
 ]);
 export type AgentToolName = z.infer<typeof AgentToolNameSchema>;
+
+export const GetElderProfileToolInputSchema = z.object({
+  elderId: z.string()
+});
+export type GetElderProfileToolInput = z.infer<typeof GetElderProfileToolInputSchema>;
+
+export const GetElderProfileToolOutputSchema = z.object({
+  profile: ElderProfileSchema
+});
+export type GetElderProfileToolOutput = z.infer<typeof GetElderProfileToolOutputSchema>;
+
+export const GetRecentMemoriesToolInputSchema = z.object({
+  elderId: z.string(),
+  limit: z.number().int().positive().max(20).optional()
+});
+export type GetRecentMemoriesToolInput = z.infer<typeof GetRecentMemoriesToolInputSchema>;
+
+export const GetRecentMemoriesToolOutputSchema = z.object({
+  memories: z.array(MemoryItemSchema)
+});
+export type GetRecentMemoriesToolOutput = z.infer<typeof GetRecentMemoriesToolOutputSchema>;
+
+export const UpdateCallStateToolInputSchema = z.object({
+  elderId: z.string(),
+  sessionId: z.string(),
+  decision: AgentDecisionSchema,
+  riskState: RiskStateSchema,
+  transcriptTurn: TranscriptTurnSchema.optional()
+});
+export type UpdateCallStateToolInput = z.infer<typeof UpdateCallStateToolInputSchema>;
+
+export const UpdateCallStateToolOutputSchema = z.object({
+  riskState: RiskStateSchema,
+  snapshot: DashboardSnapshotSchema
+});
+export type UpdateCallStateToolOutput = z.infer<typeof UpdateCallStateToolOutputSchema>;
+
+export const SaveMemoryToolInputSchema = MemoryItemSchema.omit({
+  id: true,
+  observedAt: true
+}).extend({
+  sessionId: z.string().optional()
+});
+export type SaveMemoryToolInput = z.infer<typeof SaveMemoryToolInputSchema>;
+
+export const SaveMemoryToolOutputSchema = z.object({
+  memory: MemoryItemSchema
+});
+export type SaveMemoryToolOutput = z.infer<typeof SaveMemoryToolOutputSchema>;
+
+export const CreateAlertToolInputSchema = AlertRecordSchema.omit({
+  id: true,
+  createdAt: true,
+  acknowledged: true
+}).extend({
+  sessionId: z.string().optional()
+});
+export type CreateAlertToolInput = z.infer<typeof CreateAlertToolInputSchema>;
+
+export const CreateAlertToolOutputSchema = z.object({
+  alert: AlertRecordSchema
+});
+export type CreateAlertToolOutput = z.infer<typeof CreateAlertToolOutputSchema>;
+
+export const FinalizeCallSummaryToolInputSchema = CallSummarySchema.omit({
+  id: true,
+  createdAt: true
+});
+export type FinalizeCallSummaryToolInput = z.infer<typeof FinalizeCallSummaryToolInputSchema>;
+
+export const FinalizeCallSummaryToolOutputSchema = z.object({
+  summary: CallSummarySchema
+});
+export type FinalizeCallSummaryToolOutput = z.infer<typeof FinalizeCallSummaryToolOutputSchema>;
+
+export const AgentToolInputSchema = z.discriminatedUnion("toolName", [
+  GetElderProfileToolInputSchema.extend({ toolName: z.literal("get_elder_profile") }),
+  GetRecentMemoriesToolInputSchema.extend({ toolName: z.literal("get_recent_memories") }),
+  UpdateCallStateToolInputSchema.extend({ toolName: z.literal("update_call_state") }),
+  SaveMemoryToolInputSchema.extend({ toolName: z.literal("save_memory") }),
+  CreateAlertToolInputSchema.extend({ toolName: z.literal("create_alert") }),
+  FinalizeCallSummaryToolInputSchema.extend({ toolName: z.literal("finalize_call_summary") })
+]);
+export type AgentToolInput = z.infer<typeof AgentToolInputSchema>;
+
+export const AgentToolOutputSchema = z.union([
+  GetElderProfileToolOutputSchema,
+  GetRecentMemoriesToolOutputSchema,
+  UpdateCallStateToolOutputSchema,
+  SaveMemoryToolOutputSchema,
+  CreateAlertToolOutputSchema,
+  FinalizeCallSummaryToolOutputSchema
+]);
+export type AgentToolOutput = z.infer<typeof AgentToolOutputSchema>;
 
 export const AgentToolCallSchema = z.object({
   toolName: AgentToolNameSchema,

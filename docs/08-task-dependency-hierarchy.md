@@ -93,7 +93,7 @@ Acceptance:
 
 ### T10: Contract Migration
 
-Status: `Ready`
+Status: `Done`
 
 Dependencies: T00
 
@@ -121,7 +121,7 @@ Acceptance:
 
 ### T20: Agent Adapter Boundary
 
-Status: `Blocked`
+Status: `Ready`
 
 Dependencies: T10
 
@@ -205,7 +205,7 @@ Acceptance:
 
 ### T50: Passive Caregiver Dashboard
 
-Status: `Blocked`
+Status: `Ready`
 
 Dependencies: T10
 
@@ -301,7 +301,7 @@ Tasks:
 
 - Finalize primary demo data: knee pain, tired yesterday, lives alone.
 - Script fall/dizziness path with adaptive follow-up.
-- Script loneliness path with medium concern and no urgent alert.
+- Script loneliness path with concern and no urgent alert.
 - Script normal improvement path with stable/watch outcome.
 - Add reset button or route for reliable judge demo.
 - Add short judge-facing explanation in README or demo notes.

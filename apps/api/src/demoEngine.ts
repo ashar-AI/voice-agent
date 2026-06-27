@@ -268,7 +268,7 @@ function createSummaryText(): string {
     return "Check-in found safety signals that require caregiver follow-up.";
   }
 
-  if (state.riskState.riskLevel === "medium") {
+  if (state.riskState.riskLevel === "concern") {
     return "Check-in found a non-urgent well-being concern that should be followed up softly.";
   }
 

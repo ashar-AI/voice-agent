@@ -26,7 +26,7 @@ test("fall and dizziness utterance creates high-risk alert independent of select
   assert.ok(result.alert);
 });
 
-test("stable improvement utterance remains low risk even when demo seed is fall scenario", () => {
+test("stable improvement utterance remains stable even when demo seed is fall scenario", () => {
   const result = evaluateUserTurn({
     elderId: demoProfile.elderId,
     textJa: "今日はまあまあです。膝は少し良くなりました。",
@@ -38,12 +38,12 @@ test("stable improvement utterance remains low risk even when demo seed is fall 
     now: fixedNow
   });
 
-  assert.equal(result.riskState.riskLevel, "low");
+  assert.equal(result.riskState.riskLevel, "stable");
   assert.equal(result.riskState.alertRequired, false);
   assert.equal(result.alert, undefined);
 });
 
-test("loneliness utterance creates medium concern without urgent alert", () => {
+test("loneliness utterance creates concern without urgent alert", () => {
   const result = evaluateUserTurn({
     elderId: demoProfile.elderId,
     textJa: "別に大丈夫です。ただ、最近あまり人と話していません。",
@@ -55,7 +55,7 @@ test("loneliness utterance creates medium concern without urgent alert", () => {
     now: fixedNow
   });
 
-  assert.equal(result.riskState.riskLevel, "medium");
+  assert.equal(result.riskState.riskLevel, "concern");
   assert.equal(result.riskState.alertRequired, false);
   assert.equal(result.alert, undefined);
 });

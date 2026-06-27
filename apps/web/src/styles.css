@@ -167,18 +167,26 @@ h2 {
   line-height: 1;
 }
 
-.risk-low {
+.risk-stable {
   background: #188038;
 }
 
-.risk-medium {
+.risk-watch {
   color: #2d2100;
   background: #fbbc04;
 }
 
-.risk-high,
-.risk-urgent {
+.risk-concern {
+  color: #2d2100;
+  background: #fbbc04;
+}
+
+.risk-high {
   background: #d93025;
+}
+
+.risk-urgent {
+  background: #a50e0e;
 }
 
 .grid {
