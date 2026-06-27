@@ -178,6 +178,24 @@ export const CompleteCallResponseSchema = z.object({
 });
 export type CompleteCallResponse = z.infer<typeof CompleteCallResponseSchema>;
 
+export const LiveSessionBootstrapRequestSchema = z.object({
+  elderId: z.string()
+});
+export type LiveSessionBootstrapRequest = z.infer<
+  typeof LiveSessionBootstrapRequestSchema
+>;
+
+export const LiveSessionBootstrapResponseSchema = z.object({
+  session: CallSessionSchema,
+  snapshot: DashboardSnapshotSchema,
+  agentOpening: TranscriptTurnSchema,
+  adkWebsocketPath: z.string(),
+  requiredAudioMimeType: z.literal("audio/pcm;rate=16000")
+});
+export type LiveSessionBootstrapResponse = z.infer<
+  typeof LiveSessionBootstrapResponseSchema
+>;
+
 export const DashboardEventSchema = z.object({
   eventId: z.string(),
   eventType: z.enum([

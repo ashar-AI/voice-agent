@@ -2,77 +2,120 @@
 
 Last updated: 2026-06-27 JST
 
-Purpose: concrete implementation checklist for T60 Browser Voice Session.
+Purpose: concrete implementation checklist for T60 Browser Voice Session using
+ADK Live.
 
 ## Decision
 
-Use `POST /api/live/session` rather than a pure token route.
+Use an ADK voice-agent service as the realtime call runtime.
 
-Reason: starting browser voice also needs to create a CareVoice call session, emit a dashboard snapshot, and return Gemini Live connection metadata. A route named `live/session` better reflects that behavior than `live/token`.
+```text
+Browser microphone
+  -> services/adk-voice-agent WebSocket
+  -> ADK Live / Gemini Live
+  -> CareVoice tool wrappers
+  -> apps/api validated tool endpoints
+  -> Firestore + SSE dashboard
+```
+
+Reason: the real product must not be a caregiver-driven turn processor. ADK
+keeps the conversation loop, tool choice, interruption behavior, and next
+question selection inside the agent runtime. CareVoice remains responsible for
+state validation, persistence, audit trail, and dashboard rendering.
+
+Phone-call/PSTN integration is out of scope for the hackathon. Browser voice is
+the live-call demo surface.
 
 ## Target Flow
 
 ```text
 Caregiver clicks Start Voice Demo
-  -> Web calls POST /api/live/session
-  -> API creates active CallSession and initial opening turn
-  -> API returns session, snapshot, live model/token metadata
-  -> Browser connects to Gemini Live
-  -> Gemini calls CareVoice tools through /api/agent-tools/:toolName
+  -> Web calls POST /api/live/session on apps/api
+  -> API creates active CallSession and initial memory-aware opening turn
+  -> API returns session, snapshot, ADK WebSocket path, audio MIME type
+  -> Browser connects to services/adk-voice-agent /ws/{elderId}/{sessionId}
+  -> Browser streams microphone audio as audio/pcm;rate=16000
+  -> ADK/Gemini talks naturally in Japanese
+  -> ADK/Gemini calls CareVoice tool wrappers when state changes
+  -> Tool wrappers call /api/agent-tools/:toolName
   -> Dashboard updates through existing SSE snapshots/events
 ```
 
+## Current Status
+
+Done:
+
+- `POST /api/live/session` contract and backend bootstrap route.
+- Test coverage for live-session bootstrap.
+- `services/adk-voice-agent` scaffold.
+- ADK agent instruction with memory, risk levels, non-medical boundary, and tool rules.
+- ADK tool wrappers for profile, memories, risk decision, memory save, and call finalization.
+- `uv sync --python python3.12` succeeds.
+- ADK service imports successfully.
+- ADK service `/health` responds locally.
+
+Still missing:
+
+- React microphone capture and PCM 16 kHz conversion.
+- Browser WebSocket client for ADK events/audio playback.
+- Mapping ADK transcript/audio events into dashboard-visible transcript updates.
+- ADK text WebSocket smoke test against the running Node API.
+- Real browser voice smoke test with Japanese utterance.
+- Cloud Run deployment plan for the second service or a combined deployment.
+
 ## Backend Tasks
 
-- Add `GEMINI_LIVE_MODEL`, default `gemini-3.1-flash-live-preview`, to `geminiConfig`.
-- Add shared contracts:
-  - `LiveSessionBootstrapRequest`
-  - `LiveSessionBootstrapResponse`
-- Add `POST /api/live/session`.
-- Add `startLiveSession()` in `demoEngine`.
-- Reuse existing `agentTools.ts`; do not duplicate tool persistence logic.
-- Add `geminiLiveSession.ts` for Live model metadata, system instruction, and token/session bootstrap.
-- Keep fallback behavior clear when Gemini credentials or Live token support are unavailable.
+- Keep `POST /api/live/session` as the session bootstrap.
+- Keep all persistent side effects behind `POST /api/agent-tools/:toolName`.
+- Keep tests for `LiveSessionBootstrapRequest` and route response passing.
+- Decide whether to keep ADK as a second Cloud Run service or merge it behind the
+  same external domain later.
+
+## ADK Service Tasks
+
+- Keep `uv run uvicorn app.server:app --port 8081` working.
+- Confirm ADK can connect to Vertex with:
+  - `GOOGLE_GENAI_USE_VERTEXAI=true`
+  - `GOOGLE_CLOUD_PROJECT=<project>`
+  - `GOOGLE_CLOUD_LOCATION=global`
+- Confirm text WebSocket smoke test before microphone work.
+- Confirm ADK tool calls reach the Node API and update Firestore/dashboard state.
 
 ## Frontend Tasks
 
-- Add `startLiveSession()` wrapper in `apps/web/src/api.ts`.
-- Add `apps/web/src/liveVoiceClient.ts`.
-- Add voice connection state in `App.tsx`:
+- Add `startLiveSession()` UI action.
+- Add `apps/web/src/adkVoiceClient.ts`.
+- Add voice state:
   - idle
   - requesting microphone
   - connecting
   - live
   - error
   - ended
-- Keep transcript, risk, alert, memory, summary, and briefing updates SSE-driven.
-- Keep demo text controls secondary.
+- Stream mic audio to the ADK WebSocket.
+- Play model audio or display model text/transcript depending on ADK event payload.
+- Keep text demo controls visually secondary as backup only.
 
-## Tool Call Rule
+## Tool Rule
 
-Gemini Live tool calls must map to existing endpoints:
+ADK tools may simplify the model-facing signature, but they must call existing
+CareVoice backend endpoints for side effects:
 
 ```text
-POST /api/agent-tools/get_elder_profile
-POST /api/agent-tools/get_recent_memories
-POST /api/agent-tools/update_call_state
-POST /api/agent-tools/save_memory
-POST /api/agent-tools/create_alert
-POST /api/agent-tools/finalize_call_summary
+get_elder_profile      -> POST /api/agent-tools/get_elder_profile
+get_recent_memories    -> POST /api/agent-tools/get_recent_memories
+record_risk_decision   -> POST /api/agent-tools/update_call_state
+record_risk_decision   -> POST /api/agent-tools/create_alert when needed
+save_memory            -> POST /api/agent-tools/save_memory
+finalize_call          -> POST /api/agent-tools/finalize_call_summary
 ```
 
-Do not let the browser write dashboard state directly. Browser voice can relay tool calls, but all side effects must pass through validated backend tools.
+The browser must never write dashboard state directly.
 
 ## Tests
 
-- Gemini config parses default and overridden live model.
-- `POST /api/live/session` validates body.
-- Live session bootstrap creates an active session and returns a usable snapshot.
-- Route fails gracefully without Gemini credentials if token minting is not available.
+- `POST /api/live/session` validates body and creates an active session.
+- ADK service Python files parse with Python 3.12.
+- Text WebSocket smoke test can send one Japanese utterance.
+- ADK tool call updates dashboard state through SSE.
 - Full repo `typecheck`, `test`, and `build` pass.
-
-## Open Questions
-
-- Does the currently installed `@google/genai` version support browser-safe ephemeral Live tokens directly?
-- If not, should the backend proxy the Live WebSocket for the hackathon or keep browser voice as a stretch path?
-- Should true Live sessions keep `scenarioId`, or should `CallSession` later make scenario optional?

@@ -2,13 +2,14 @@
 
 Last updated: 2026-06-27 JST
 
-## Target Architecture
+## Product HLD
 
 ```text
-Browser voice client
+Browser voice client / elder demo device
+  -> CareVoice API: POST /api/live/session
+  -> ADK voice-agent service
   -> Gemini Live API
-  -> CareVoice Cloud Run backend
-  -> CareVoice tool endpoints
+  -> CareVoice API tool endpoints
   -> Firestore state
   -> SSE/dashboard events
   -> Caregiver dashboard
@@ -18,9 +19,13 @@ Post-call
   -> Dashboard briefing panel
 ```
 
-## Current Scaffold
+Phone-call/PSTN integration is out of hackathon scope. A browser microphone is
+the live-call demo surface. Twilio or carrier phone calls can be added later by
+feeding audio into the same ADK service.
 
-Current implementation is a local scaffold:
+## Current Status
+
+Implemented:
 
 ```text
 React caregiver dashboard
@@ -31,15 +36,26 @@ React caregiver dashboard
   -> SSE/HTTP dashboard updates
 ```
 
+```text
+Browser/API live bootstrap
+  -> POST /api/live/session
+  -> services/adk-voice-agent scaffold
+  -> ADK tool wrappers over CareVoice API tool endpoints
+```
+
 The fallback evaluator exists only to keep local development and hackathon backup demo reliable before Gemini credentials are available. It is not the target intelligence layer.
 
 The state repository defaults to memory mode for deterministic local demos and can be switched to Firestore on Cloud Run with `STATE_REPOSITORY=firestore`.
 
-Known implementation gaps:
+Remaining implementation gaps:
 
-- Gemini Live browser voice is not wired yet.
+- React microphone capture and PCM 16 kHz streaming are not wired yet.
+- Browser WebSocket client for ADK events/audio playback is not wired yet.
+- ADK Live session has not yet been smoke-tested with a real browser audio stream.
+- ADK transcript/audio events are not yet mapped into dashboard transcript updates.
 - Dashboard still includes secondary demo controls until Gemini Live is wired.
-- Firestore mode is implemented but still needs deployed Cloud Run verification.
+- Firestore mode is implemented locally but still needs deployed Cloud Run verification.
+- ADK service deployment/containerization is not finished.
 
 ## Service Responsibilities
 
@@ -58,6 +74,14 @@ Known implementation gaps:
 - persistence adapter
 - Gemini adapter host
 - fallback evaluator host
+
+`services/adk-voice-agent`
+
+- ADK Live streaming runtime
+- realtime Japanese conversation loop
+- Gemini Live model connection
+- agent tool wrappers over CareVoice backend endpoints
+- no direct database writes
 
 `packages/contracts`
 
@@ -78,7 +102,7 @@ Firestore
 - call summaries
 - Managed Agent briefings
 
-Gemini Live API
+ADK / Gemini Live API
 
 - realtime Japanese voice
 - adaptive conversation
@@ -100,21 +124,25 @@ Managed Agent
 
 ```text
 1. Check-in starts.
-2. Backend loads profile and recent memories.
-3. Gemini Live agent starts Japanese conversation.
-4. Elder responds naturally.
-5. Gemini produces AgentDecision and calls tools.
-6. Tool handlers validate and persist state.
-7. Backend emits DashboardEvent.
-8. Caregiver dashboard updates passively.
-9. Gemini finalizes call through tool.
-10. Managed Agent creates caregiver briefing.
+2. Browser calls POST /api/live/session.
+3. Backend creates an active CareVoice session and returns ADK WebSocket metadata.
+4. Browser connects to the ADK voice-agent WebSocket.
+5. ADK/Gemini Live agent loads profile and memory through tools.
+6. ADK/Gemini Live agent starts Japanese conversation.
+7. Elder responds naturally through browser audio.
+8. ADK/Gemini produces risk decisions and calls CareVoice tools.
+9. Tool handlers validate and persist state.
+10. Backend emits DashboardEvent.
+11. Caregiver dashboard updates passively.
+12. ADK/Gemini finalizes call through tool.
+13. Managed Agent creates caregiver briefing.
 ```
 
 ## Hard Boundaries
 
 - Dashboard must never consume raw model output directly.
 - Gemini must use CareVoice tools for persistent side effects.
+- The live voice agent loop must not be controlled by dashboard buttons.
 - Scenario IDs can seed demo inputs but must not determine risk.
 - Fallback evaluator must stay behind an adapter interface.
 - Alert creation must remain auditable and validated server-side.

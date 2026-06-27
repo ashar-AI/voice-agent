@@ -6,6 +6,20 @@ Goal: move from the current scaffold to Gemini-agent-driven behavior while prese
 
 For owner-ready small tasks, dependency order, and merge sequencing, use [`08-task-dependency-hierarchy.md`](./08-task-dependency-hierarchy.md).
 
+## Current Decision
+
+Use ADK Live for the actual voice-agent runtime. Phone-call/PSTN integration is
+out of hackathon scope; the demo call uses browser microphone audio. The
+text-mode scenario path remains as backup only.
+
+Current ADK status:
+
+- ADK service scaffold exists.
+- CareVoice live-session bootstrap exists.
+- ADK tool wrappers exist.
+- Service boots locally and `/health` responds.
+- Browser microphone/WebSocket/audio/event wiring is not complete.
+
 ## Phase 1: Contracts And Adapter Boundary
 
 Tasks:
@@ -94,17 +108,26 @@ Acceptance:
 
 Tasks:
 
-- Add `POST /api/live/token` for ephemeral token minting.
-- Add browser voice client.
-- Connect Gemini Live API.
-- Wire tool calls to CareVoice backend.
-- Emit dashboard events for transcript/risk/alert/summary.
+Done:
+
+- Add `POST /api/live/session` for CareVoice session bootstrap.
+- Add `services/adk-voice-agent` using ADK Live streaming.
+- Wire ADK tool wrappers to existing CareVoice backend tool endpoints.
+
+Remaining:
+
+- Add browser voice client that streams mic audio to the ADK WebSocket.
+- Convert browser mic audio to `audio/pcm;rate=16000`.
+- Play ADK/Gemini audio responses or show model text if audio response is not reliable.
+- Map ADK transcript/tool events into dashboard-visible transcript/risk updates.
+- Smoke-test one live Japanese browser voice check-in end to end.
 
 Acceptance:
 
 - One Japanese check-in works in browser.
 - Transcript updates live.
-- Agent calls at least `get_recent_memories` and `update_call_state`.
+- ADK agent calls at least `get_elder_profile`, `get_recent_memories`, and `record_risk_decision`.
+- Dashboard buttons do not control the live conversation turn loop.
 
 ## Phase 6: Managed Agent Bonus
 
@@ -147,12 +170,15 @@ Acceptance:
 Tasks:
 
 - Deploy API to Cloud Run.
+- Deploy ADK voice-agent service to Cloud Run or document local-only hackathon mode.
 - Configure secrets/env vars.
 - Confirm dashboard reaches deployed API.
+- Confirm dashboard reaches deployed ADK WebSocket if voice mode is deployed.
 
 Acceptance:
 
-- `/health` works on deployed URL.
+- `/health` works on deployed API URL.
+- `/health` works on deployed ADK service URL if deployed.
 - One check-in flow works against deployed backend.
 
 ## Phase 9: Final Demo

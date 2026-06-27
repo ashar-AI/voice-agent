@@ -6,10 +6,23 @@ Last updated: 2026-06-27 JST
 
 Deploy the API to Cloud Run. The dashboard may be served separately or bundled later, but hackathon eligibility requires a deployed Google Cloud component.
 
+For the real voice path, deploy `services/adk-voice-agent` as a second Cloud Run
+service or merge it behind the same domain later. The ADK service owns the Live
+voice WebSocket. The API service owns state, tools, Firestore, and dashboard
+events.
+
 ## Build Container
 
 ```bash
 docker build -t voice-agent-api .
+```
+
+ADK service containerization is still pending. Local run target:
+
+```bash
+cd services/adk-voice-agent
+uv sync
+uv run uvicorn app.server:app --host 0.0.0.0 --port 8081
 ```
 
 ## Deploy To Cloud Run

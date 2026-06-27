@@ -25,6 +25,8 @@ Contracts live in `packages/contracts`. Frontend and backend must import shared 
 - `AgentDecision`
 - `AgentTurnRequest`
 - `AgentTurnResponse`
+- `LiveSessionBootstrapRequest`
+- `LiveSessionBootstrapResponse`
 - tool input/output schemas
 
 ## Risk Levels
@@ -50,12 +52,17 @@ GET  /api/elders/:elderId/snapshot
 GET  /api/elders/:elderId/events
 POST /api/demo/reset
 POST /api/scenarios/start
+POST /api/live/session
 POST /api/conversation/turn
 POST /api/agent-tools/:toolName
 POST /api/calls/:sessionId/complete
 ```
 
 The scenario and conversation routes support local fallback/demo mode. They are not the final Gemini Live interface.
+
+`POST /api/live/session` is the ADK browser-voice bootstrap. It creates an
+active CareVoice session and returns the ADK WebSocket path plus required audio
+MIME type. It is not a PSTN/Twilio phone-call endpoint.
 
 ## Tool API
 

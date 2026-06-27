@@ -4,12 +4,14 @@ import {
   DashboardEventSchema,
   DashboardSnapshotSchema,
   DemoScenarioSchema,
+  LiveSessionBootstrapResponseSchema,
   StartScenarioResponseSchema,
   type CompleteCallResponse,
   type ConversationTurnResponse,
   type DashboardEvent,
   type DashboardSnapshot,
   type DemoScenario,
+  type LiveSessionBootstrapResponse,
   type ScenarioId,
   type StartScenarioResponse
 } from "@voice-agent/contracts";
@@ -61,6 +63,13 @@ export async function startScenario(
   return fetchContract("/api/scenarios/start", StartScenarioResponseSchema, {
     method: "POST",
     body: JSON.stringify({ elderId, scenarioId })
+  });
+}
+
+export async function startLiveSession(elderId: string): Promise<LiveSessionBootstrapResponse> {
+  return fetchContract("/api/live/session", LiveSessionBootstrapResponseSchema, {
+    method: "POST",
+    body: JSON.stringify({ elderId })
   });
 }
 

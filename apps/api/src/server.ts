@@ -1,6 +1,7 @@
 import cors from "@fastify/cors";
 import {
   ConversationTurnRequestSchema,
+  LiveSessionBootstrapRequestSchema,
   StartScenarioRequestSchema
 } from "@voice-agent/contracts";
 import Fastify from "fastify";
@@ -12,6 +13,7 @@ import {
   getDashboardSnapshot,
   handleConversationTurn,
   resetDemoState,
+  startLiveSession,
   startScenario,
   subscribeDashboardEvents
 } from "./demoEngine.js";
@@ -90,6 +92,15 @@ export function buildServer() {
     try {
       const input = StartScenarioRequestSchema.parse(request.body);
       return await startScenario(input);
+    } catch (error) {
+      return handleRouteError(reply, error);
+    }
+  });
+
+  app.post("/api/live/session", async (request, reply) => {
+    try {
+      const input = LiveSessionBootstrapRequestSchema.parse(request.body);
+      return await startLiveSession(input);
     } catch (error) {
       return handleRouteError(reply, error);
     }

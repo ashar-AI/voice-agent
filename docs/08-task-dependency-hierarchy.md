@@ -18,6 +18,7 @@ Use this as the working task board. Keep statuses here or mirror these task IDs 
 ## Status Legend
 
 - `Done`: already completed in repo.
+- `In Progress`: partially implemented; remaining work is listed in the task.
 - `Ready`: can start now.
 - `Blocked`: needs dependency first.
 - `Parallel`: can be worked in parallel once listed dependencies are done.
@@ -33,7 +34,7 @@ T00 Docs and locked requirements
       -> T40 Gemini decision adapter
 
 T30 Backend tool handlers + T40 Gemini decision adapter + T50 Dashboard passive monitor
-  -> T60 Browser voice session
+  -> T60 ADK browser voice session
     -> T80 End-to-end demo hardening
 
 T30 Backend tool handlers
@@ -51,7 +52,7 @@ T82 Backup text-mode demo depends on T20 and T50.
 Critical path for the hackathon demo:
 
 ```text
-contracts -> agent adapter -> Gemini decision path -> tool handlers -> passive dashboard -> browser voice -> demo script -> Cloud Run
+contracts -> agent adapter -> Gemini decision path -> tool handlers -> passive dashboard -> ADK browser voice -> demo script -> Cloud Run
 ```
 
 ## Workstream Ownership
@@ -231,9 +232,9 @@ Acceptance:
 - SSE updates remain the main dashboard update path.
 - Mobile layout is readable.
 
-### T60: Browser Voice Session
+### T60: ADK Browser Voice Session
 
-Status: `Ready`
+Status: `In Progress`
 
 Dependencies: T30, T40, T50
 
@@ -243,23 +244,32 @@ Owner fit: Gemini/frontend/backend
 
 Tasks:
 
-- Add `POST /api/live/token` or equivalent session bootstrap.
-- Add browser microphone/speaker flow.
-- Connect Gemini Live API using the current recommended model from `docs/04-gemini-agent-setup.md`.
-- Route Gemini tool calls to CareVoice tool handlers.
-- Stream transcript and risk events to dashboard.
-- Add browser permission and connection error states.
+- `Done`: add `POST /api/live/session` bootstrap.
+- `Done`: add `LiveSessionBootstrapRequest` and `LiveSessionBootstrapResponse` contracts.
+- `Done`: add `services/adk-voice-agent` with ADK Live streaming scaffold.
+- `Done`: add ADK instruction with memory, risk levels, and non-medical boundaries.
+- `Done`: route ADK/Gemini tool wrappers to CareVoice tool handlers.
+- `Done`: verify ADK service boots locally and `/health` responds.
+- `Ready`: smoke-test ADK text WebSocket against the running Node API.
+- `Ready`: add browser microphone/speaker flow.
+- `Ready`: convert browser mic input to `audio/pcm;rate=16000`.
+- `Ready`: connect browser audio to the ADK voice-agent WebSocket.
+- `Ready`: map ADK transcript/audio/tool events to dashboard-visible transcript and status.
+- `Ready`: add browser permission and connection error states.
 
 Output:
 
-- Primary demo path: Japanese browser voice check-in with realtime dashboard updates.
+- Primary demo path: Japanese browser voice check-in with ADK-owned realtime conversation and dashboard updates.
 
 Acceptance:
 
 - One Japanese call works through browser voice.
 - Agent uses memory naturally.
 - Agent updates risk during the call.
-- Agent calls at least `get_recent_memories` and `update_call_state`.
+- ADK/Gemini calls at least `get_elder_profile` and `get_recent_memories`.
+- ADK/Gemini calls `record_risk_decision`, which persists through `update_call_state`.
+- Dashboard updates without caregiver manually processing turns.
+- Phone-call/PSTN integration is not required for hackathon acceptance.
 
 ### T70: Firestore Persistence
 
@@ -303,6 +313,8 @@ Owner fit: frontend/backend/demo
 
 Tasks:
 
+- Use browser voice as the primary live-call demo surface.
+- Keep phone-call/Twilio integration out of demo scope.
 - Finalize primary demo data: knee pain, tired yesterday, lives alone.
 - Script fall/dizziness path with adaptive follow-up.
 - Script loneliness path with concern and no urgent alert.
@@ -324,17 +336,21 @@ Acceptance:
 
 Status: `Blocked`
 
-Dependencies: T30 and whichever runtime path is selected for the hackathon
+Dependencies: T30 and whichever runtime path is selected for the hackathon. For
+voice mode, this includes the ADK service from T60.
 
 Owner fit: DevOps/backend
 
 Tasks:
 
 - Confirm Docker build.
+- Add Dockerfile or deployment path for `services/adk-voice-agent`.
 - Configure Cloud Run env vars and secrets.
 - Configure CORS for deployed dashboard origin.
 - Confirm `/health`.
+- Confirm ADK service `/health` if deployed.
 - Confirm dashboard can reach API.
+- Confirm dashboard can reach ADK WebSocket if deployed.
 - Document deployed URLs and any manual setup steps.
 
 Output:
@@ -344,6 +360,7 @@ Output:
 Acceptance:
 
 - Deployed API health check passes.
+- Deployed ADK service health check passes if voice demo is deployed.
 - One check-in path works against deployed backend.
 - Secrets are not committed.
 

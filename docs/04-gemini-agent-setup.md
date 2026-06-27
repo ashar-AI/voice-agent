@@ -8,6 +8,7 @@ Keep CareVoice lightweight. Gemini owns the intelligence layer; CareVoice owns s
 
 ```text
 Browser voice
+  -> ADK voice-agent service
   -> Gemini Live API
   -> CareVoice Cloud Run tool endpoints
   -> Gemini 3.5 Flash structured reasoning
@@ -72,7 +73,7 @@ Use for:
 Realtime voice:
 
 ```text
-gemini-3.1-flash-live-preview
+gemini-live-2.5-flash-native-audio
 ```
 
 Use for:
@@ -81,6 +82,11 @@ Use for:
 - interruption/barge-in
 - live transcript
 - function/tool calling during call
+
+The live model is configured in `services/adk-voice-agent/.env` as
+`CAREVOICE_LIVE_MODEL`. Keep `gemini-3.5-flash` for structured risk and
+briefing calls unless Vertex exposes a newer compatible structured model during
+the hackathon.
 
 Do not use:
 
@@ -102,18 +108,19 @@ Do not use it as the primary realtime call runtime unless mentors explicitly rec
 
 ## ADK / Agent Runtime
 
-Use ADK or Agent Runtime only after the direct Live API path works.
+Use ADK Live as the real voice-call runtime.
 
-Good future uses:
+Why:
 
-- cleaner agent structure
-- managed deployment
-- session hardening
+- the agent, not the dashboard, owns the realtime conversation loop
+- ADK handles bidirectional streaming events and Live API sessions
+- tool calls remain explicit and auditable
+- CareVoice still validates every persistent side effect
 
-Hackathon default:
+Hackathon runtime split:
 
 ```text
-Direct Gemini Live API + Cloud Run tool endpoints
+Browser mic -> ADK voice-agent WebSocket -> Gemini Live -> CareVoice tools
 ```
 
 ## Managed Agent Bonus

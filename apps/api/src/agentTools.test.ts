@@ -6,6 +6,7 @@ import {
   FinalizeCallSummaryToolOutputSchema,
   GetElderProfileToolOutputSchema,
   GetRecentMemoriesToolOutputSchema,
+  LiveSessionBootstrapResponseSchema,
   SaveMemoryToolOutputSchema,
   StartScenarioResponseSchema,
   UpdateCallStateToolOutputSchema
@@ -170,6 +171,32 @@ test("agent final summary tool stores the summary and completes the call", async
   assert.equal(snapshot.session?.status, "completed");
   assert.equal(snapshot.session?.completedAt !== undefined, true);
   assert.deepEqual(eventTypes, ["call.completed", "briefing.created"]);
+});
+
+test("live session bootstrap creates an ADK-ready active call", async (t) => {
+  await resetDemoState();
+  const app = buildServer();
+  t.after(async () => app.close());
+
+  const response = await app.inject({
+    method: "POST",
+    url: "/api/live/session",
+    payload: {
+      elderId: DEMO_ELDER_ID
+    }
+  });
+
+  assert.equal(response.statusCode, 200);
+  const output = LiveSessionBootstrapResponseSchema.parse(response.json());
+  assert.equal(output.session.status, "active");
+  assert.equal(output.session.elderId, DEMO_ELDER_ID);
+  assert.equal(output.requiredAudioMimeType, "audio/pcm;rate=16000");
+  assert.equal(
+    output.adkWebsocketPath,
+    `/ws/${DEMO_ELDER_ID}/${output.session.sessionId}`
+  );
+  assert.equal(output.snapshot.session?.sessionId, output.session.sessionId);
+  assert.equal(output.snapshot.transcript[0]?.speaker, "ai");
 });
 
 async function startScenario(app: ReturnType<typeof buildServer>) {

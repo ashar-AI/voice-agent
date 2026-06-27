@@ -16,6 +16,8 @@ import type {
   GetElderProfileToolOutput,
   GetRecentMemoriesToolInput,
   GetRecentMemoriesToolOutput,
+  LiveSessionBootstrapRequest,
+  LiveSessionBootstrapResponse,
   MemoryItem,
   RiskState,
   ScenarioId,
@@ -300,6 +302,36 @@ export async function startScenario(input: StartScenarioRequest): Promise<StartS
   };
 }
 
+export async function startLiveSession(
+  input: LiveSessionBootstrapRequest
+): Promise<LiveSessionBootstrapResponse> {
+  assertKnownElder(input.elderId);
+
+  await resetDemoState();
+
+  const session: CallSession = {
+    sessionId: id("session"),
+    elderId: input.elderId,
+    scenarioId: "normal_check_in",
+    status: "active",
+    startedAt: now()
+  };
+
+  const agentOpening = createMemoryBasedOpeningTurn();
+  state.session = session;
+  state.transcript = [agentOpening];
+  await persistState();
+  await emit("snapshot.updated");
+
+  return {
+    session,
+    snapshot: snapshot(),
+    agentOpening,
+    adkWebsocketPath: `/ws/${input.elderId}/${session.sessionId}`,
+    requiredAudioMimeType: "audio/pcm;rate=16000"
+  };
+}
+
 function assertKnownElder(elderId: string) {
   if (elderId !== DEMO_ELDER_ID) {
     throw new Error(`Unknown elder: ${elderId}`);
@@ -458,6 +490,14 @@ function createOpeningTurn(scenarioId: ScenarioId): TranscriptTurn {
     );
   }
 
+  return transcriptTurn(
+    "ai",
+    "佐藤さん、こんにちは。先週、膝が痛いとおっしゃっていましたが、その後どうですか？",
+    "Hello Sato-san. Last week you mentioned your knee was hurting. How has it been since then?"
+  );
+}
+
+function createMemoryBasedOpeningTurn(): TranscriptTurn {
   return transcriptTurn(
     "ai",
     "佐藤さん、こんにちは。先週、膝が痛いとおっしゃっていましたが、その後どうですか？",

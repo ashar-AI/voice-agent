@@ -6,6 +6,24 @@ Last updated: 2026-06-27 JST
 
 Show that CareVoice is not an IVR. It is a memory-enabled Gemini voice agent that adapts the conversation, updates risk in realtime, and escalates with evidence.
 
+## Demo Surface
+
+Primary hackathon demo:
+
+```text
+Browser microphone -> ADK Live voice agent -> CareVoice dashboard
+```
+
+Out of scope for the hackathon demo:
+
+```text
+Real phone number / Twilio / PSTN call routing
+```
+
+Reason: the differentiator is the realtime adaptive agent, memory, risk
+understanding, and evidence-based escalation. Phone routing is a transport
+integration and can be added later without changing the agent architecture.
+
 ## Primary Scenario
 
 Care recipient:
@@ -44,23 +62,25 @@ Expected agent behavior:
 ## Demo Flow
 
 1. Show caregiver dashboard for Sato-san.
-2. Start voice check-in.
-3. Gemini opens from memory:
+2. Start browser voice check-in.
+3. Browser calls `POST /api/live/session`.
+4. Browser connects to the ADK voice-agent WebSocket.
+5. ADK/Gemini opens from memory:
 
 ```text
 先週、膝が痛いとおっしゃっていましたが、その後どうですか？
 ```
 
-4. Elder gives fall/dizziness line.
-5. Dashboard updates:
+6. Elder gives fall/dizziness line through browser mic.
+7. Dashboard updates:
    - transcript
    - risk state
    - evidence
    - open questions
-6. Gemini asks adaptive follow-up.
-7. Alert appears for caregiver.
-8. Complete call.
-9. Managed Agent briefing appears.
+8. ADK/Gemini asks adaptive follow-up.
+9. Alert appears for caregiver.
+10. Complete call.
+11. Managed Agent briefing appears.
 
 ## Backup Demo
 
@@ -68,7 +88,8 @@ If voice setup fails:
 
 - use text-mode fallback input
 - keep same transcript/risk/alert/dashboard flow
-- explain that Gemini Live API is the intended voice channel
+- explain that ADK Live browser voice is the intended channel
+- do not claim phone-call integration is implemented
 
 ## Secondary Scenarios
 

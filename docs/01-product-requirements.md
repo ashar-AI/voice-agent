@@ -9,6 +9,9 @@ CareVoice is an agent-driven welfare-check platform for elderly people living al
 
 The core differentiator is not calling automation. It is a memory-enabled agent that understands the person over time and decides how to continue the conversation.
 
+For the hackathon build, "call" means a browser voice session. Real phone
+number/PSTN/Twilio routing is a later transport integration and is out of scope.
+
 ## Non-Negotiables
 
 CareVoice must not behave like:
@@ -48,14 +51,14 @@ CareVoice may validate agent output. It should not be the primary decision-maker
 
 ```text
 Scheduled/browser voice check-in starts
-  -> Gemini Live agent loads profile + memory
-  -> Gemini speaks naturally in Japanese
+  -> ADK/Gemini Live agent loads profile + memory
+  -> ADK/Gemini speaks naturally in Japanese
   -> elder responds freely
-  -> Gemini evaluates context, risk, and open questions
-  -> Gemini chooses the next conversational move
-  -> Gemini calls CareVoice tools to update state
-  -> Gemini decides when enough information is gathered
-  -> Gemini creates alert and summary through tools when needed
+  -> ADK/Gemini evaluates context, risk, and open questions
+  -> ADK/Gemini chooses the next conversational move
+  -> ADK/Gemini calls CareVoice tools to update state
+  -> ADK/Gemini decides when enough information is gathered
+  -> ADK/Gemini creates alert and summary through tools when needed
   -> dashboard updates passively for caregiver
 ```
 
@@ -141,4 +144,4 @@ Primary bonus feature: Managed Agent for post-call caregiver briefing.
 
 It should run after the call using transcript, risk state, alert evidence, and memory timeline.
 
-It should not replace the realtime Gemini Live call agent unless mentors explicitly recommend that path and setup is reliable.
+It should not replace the realtime ADK/Gemini Live call agent unless mentors explicitly recommend that path and setup is reliable.
