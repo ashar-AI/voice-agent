@@ -37,23 +37,23 @@ export async function handleAgentToolRequest(
   switch (toolName) {
     case "get_elder_profile":
       return GetElderProfileToolOutputSchema.parse(
-        getElderProfileTool(GetElderProfileToolInputSchema.parse(normalizedBody))
+        await getElderProfileTool(GetElderProfileToolInputSchema.parse(normalizedBody))
       );
     case "get_recent_memories":
       return GetRecentMemoriesToolOutputSchema.parse(
-        getRecentMemoriesTool(GetRecentMemoriesToolInputSchema.parse(normalizedBody))
+        await getRecentMemoriesTool(GetRecentMemoriesToolInputSchema.parse(normalizedBody))
       );
     case "update_call_state":
       return UpdateCallStateToolOutputSchema.parse(
-        updateCallStateTool(UpdateCallStateToolInputSchema.parse(normalizedBody))
+        await updateCallStateTool(UpdateCallStateToolInputSchema.parse(normalizedBody))
       );
     case "save_memory":
       return SaveMemoryToolOutputSchema.parse(
-        saveMemoryTool(SaveMemoryToolInputSchema.parse(normalizedBody))
+        await saveMemoryTool(SaveMemoryToolInputSchema.parse(normalizedBody))
       );
     case "create_alert":
       return CreateAlertToolOutputSchema.parse(
-        createAlertTool(CreateAlertToolInputSchema.parse(normalizedBody))
+        await createAlertTool(CreateAlertToolInputSchema.parse(normalizedBody))
       );
     case "finalize_call_summary":
       return FinalizeCallSummaryToolOutputSchema.parse(

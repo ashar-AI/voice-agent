@@ -9,6 +9,7 @@ import type {
   ConversationTurnResponse,
   DashboardEvent,
   DashboardSnapshot,
+  ElderProfile,
   FinalizeCallSummaryToolInput,
   FinalizeCallSummaryToolOutput,
   GetElderProfileToolInput,
@@ -29,15 +30,20 @@ import type {
 } from "@voice-agent/contracts";
 import {
   DEMO_ELDER_ID,
-  baseMemories,
-  createInitialRiskState,
-  demoProfile,
   getScenario
 } from "./demoData.js";
 import { createCaregiverBriefing } from "./caregiverBriefingAgent.js";
+import {
+  type CareVoiceStateRepository,
+  createInitialCareVoiceState,
+  createStateRepository,
+  MemoryCareVoiceStateRepository,
+  stateToSnapshot
+} from "./stateRepository.js";
 import { createWelfareCheckAgent } from "./welfareCheckAgent.js";
 
 type DemoState = {
+  profile: ElderProfile;
   memories: MemoryItem[];
   session?: CallSession;
   transcript: TranscriptTurn[];
@@ -47,17 +53,14 @@ type DemoState = {
   latestBriefing?: CaregiverBriefing;
 };
 
-const state: DemoState = createResetState();
+let repository: CareVoiceStateRepository = createStateRepository();
+let state: DemoState = createResetState();
+let stateLoaded = false;
 const listeners = new Set<(event: DashboardEvent) => void>();
 const welfareCheckAgent = createWelfareCheckAgent();
 
 function createResetState(): DemoState {
-  return {
-    memories: [...baseMemories],
-    transcript: [],
-    riskState: createInitialRiskState(),
-    alerts: []
-  };
+  return createInitialCareVoiceState();
 }
 
 function now(): string {
@@ -91,25 +94,28 @@ function materializeTranscriptTurn(turn: Omit<TranscriptTurn, "id" | "timestamp"
 }
 
 function snapshot(): DashboardSnapshot {
-  return {
-    profile: demoProfile,
-    memories: state.memories,
-    session: state.session,
-    transcript: state.transcript,
-    riskState: state.riskState,
-    alerts: state.alerts,
-    latestSummary: state.latestSummary,
-    latestBriefing: state.latestBriefing,
-    updatedAt: now()
-  };
+  return stateToSnapshot(state);
 }
 
-function emit(eventType: DashboardEvent["eventType"]) {
+async function loadState(): Promise<DemoState> {
+  if (!stateLoaded) {
+    state = await repository.loadState(DEMO_ELDER_ID);
+    stateLoaded = true;
+  }
+
+  return state;
+}
+
+async function persistState(): Promise<void> {
+  await repository.saveState(state);
+}
+
+async function emit(eventType: DashboardEvent["eventType"]) {
   const currentSnapshot = snapshot();
   const event: DashboardEvent = {
     eventId: id("event"),
     eventType,
-    elderId: DEMO_ELDER_ID,
+    elderId: state.profile.elderId,
     sessionId: state.session?.sessionId,
     payload: currentSnapshot,
     emittedAt: now()
@@ -127,37 +133,34 @@ export function subscribeDashboardEvents(
   return () => listeners.delete(listener);
 }
 
-export function resetDemoState(): DashboardSnapshot {
-  const next = createResetState();
-  state.memories = next.memories;
-  state.session = undefined;
-  state.transcript = next.transcript;
-  state.riskState = next.riskState;
-  state.alerts = next.alerts;
-  state.latestSummary = undefined;
-  state.latestBriefing = undefined;
+export async function resetDemoState(): Promise<DashboardSnapshot> {
+  state = await repository.resetState(DEMO_ELDER_ID);
+  stateLoaded = true;
   const currentSnapshot = snapshot();
-  emit("snapshot.updated");
+  await emit("snapshot.updated");
   return currentSnapshot;
 }
 
-export function getDashboardSnapshot(): DashboardSnapshot {
+export async function getDashboardSnapshot(): Promise<DashboardSnapshot> {
+  await loadState();
   return snapshot();
 }
 
-export function getElderProfileTool(
+export async function getElderProfileTool(
   input: GetElderProfileToolInput
-): GetElderProfileToolOutput {
+): Promise<GetElderProfileToolOutput> {
   assertKnownElder(input.elderId);
+  await loadState();
   return {
-    profile: demoProfile
+    profile: state.profile
   };
 }
 
-export function getRecentMemoriesTool(
+export async function getRecentMemoriesTool(
   input: GetRecentMemoriesToolInput
-): GetRecentMemoriesToolOutput {
+): Promise<GetRecentMemoriesToolOutput> {
   assertKnownElder(input.elderId);
+  await loadState();
   const sortedMemories = [...state.memories]
     .filter((memory) => memory.elderId === input.elderId)
     .sort((left, right) => right.observedAt.localeCompare(left.observedAt));
@@ -167,10 +170,11 @@ export function getRecentMemoriesTool(
   };
 }
 
-export function updateCallStateTool(
+export async function updateCallStateTool(
   input: UpdateCallStateToolInput
-): UpdateCallStateToolOutput {
+): Promise<UpdateCallStateToolOutput> {
   assertKnownElder(input.elderId);
+  await loadState();
   assertMatchingSession(input.sessionId);
 
   state.riskState = input.riskState;
@@ -178,7 +182,8 @@ export function updateCallStateTool(
     state.transcript.push(input.transcriptTurn);
   }
 
-  emit("risk.updated");
+  await persistState();
+  await emit("risk.updated");
 
   return {
     riskState: state.riskState,
@@ -186,8 +191,9 @@ export function updateCallStateTool(
   };
 }
 
-export function saveMemoryTool(input: SaveMemoryToolInput): SaveMemoryToolOutput {
+export async function saveMemoryTool(input: SaveMemoryToolInput): Promise<SaveMemoryToolOutput> {
   assertKnownElder(input.elderId);
+  await loadState();
   assertOptionalMatchingSession(input.sessionId);
 
   const memory: MemoryItem = {
@@ -200,15 +206,17 @@ export function saveMemoryTool(input: SaveMemoryToolInput): SaveMemoryToolOutput
   };
 
   state.memories = [memory, ...state.memories];
-  emit("snapshot.updated");
+  await persistState();
+  await emit("snapshot.updated");
 
   return {
     memory
   };
 }
 
-export function createAlertTool(input: CreateAlertToolInput): CreateAlertToolOutput {
+export async function createAlertTool(input: CreateAlertToolInput): Promise<CreateAlertToolOutput> {
   assertKnownElder(input.elderId);
+  await loadState();
   assertOptionalMatchingSession(input.sessionId);
 
   const alert: AlertRecord = {
@@ -224,7 +232,8 @@ export function createAlertTool(input: CreateAlertToolInput): CreateAlertToolOut
   };
 
   state.alerts = [alert, ...state.alerts];
-  emit("alert.created");
+  await persistState();
+  await emit("alert.created");
 
   return {
     alert
@@ -235,6 +244,7 @@ export async function finalizeCallSummaryTool(
   input: FinalizeCallSummaryToolInput
 ): Promise<FinalizeCallSummaryToolOutput> {
   assertKnownElder(input.elderId);
+  await loadState();
   const session = assertMatchingSession(input.sessionId);
 
   const summary: CallSummary = {
@@ -255,7 +265,8 @@ export async function finalizeCallSummaryTool(
     completedAt: now()
   };
   state.latestSummary = summary;
-  emit("call.completed");
+  await persistState();
+  await emit("call.completed");
   await createAndStoreBriefing(summary);
 
   return {
@@ -263,10 +274,10 @@ export async function finalizeCallSummaryTool(
   };
 }
 
-export function startScenario(input: StartScenarioRequest): StartScenarioResponse {
+export async function startScenario(input: StartScenarioRequest): Promise<StartScenarioResponse> {
   assertKnownElder(input.elderId);
 
-  resetDemoState();
+  await resetDemoState();
 
   const session: CallSession = {
     sessionId: id("session"),
@@ -279,7 +290,8 @@ export function startScenario(input: StartScenarioRequest): StartScenarioRespons
   const agentOpening = createOpeningTurn(input.scenarioId);
   state.session = session;
   state.transcript = [agentOpening];
-  emit("snapshot.updated");
+  await persistState();
+  await emit("snapshot.updated");
 
   return {
     session,
@@ -311,6 +323,7 @@ function assertOptionalMatchingSession(sessionId: string | undefined) {
 export async function handleConversationTurn(
   input: ConversationTurnRequest
 ): Promise<ConversationTurnResponse> {
+  await loadState();
   if (!state.session || state.session.sessionId !== input.sessionId) {
     throw new Error("No active matching session");
   }
@@ -321,7 +334,7 @@ export async function handleConversationTurn(
   const agentResult = await welfareCheckAgent.createTurn({
     elderId: input.elderId,
     sessionId: input.sessionId,
-    profile: demoProfile,
+    profile: state.profile,
     memories: state.memories,
     transcript: state.transcript,
     previousRiskState: state.riskState,
@@ -362,7 +375,8 @@ export async function handleConversationTurn(
 
   const agentTurn = materializeTranscriptTurn(agentResult.agentTurn);
   state.transcript.push(agentTurn);
-  emit(state.riskState.alertRequired ? "alert.created" : "risk.updated");
+  await persistState();
+  await emit(state.riskState.alertRequired ? "alert.created" : "risk.updated");
 
   return {
     elderTurn,
@@ -372,6 +386,7 @@ export async function handleConversationTurn(
 }
 
 export async function completeCallSession(sessionId: string): Promise<CompleteCallResponse> {
+  await loadState();
   if (!state.session || state.session.sessionId !== sessionId) {
     throw new Error("No active matching session");
   }
@@ -396,7 +411,8 @@ export async function completeCallSession(sessionId: string): Promise<CompleteCa
 
   state.session = completedSession;
   state.latestSummary = summary;
-  emit("call.completed");
+  await persistState();
+  await emit("call.completed");
   await createAndStoreBriefing(summary);
 
   return {
@@ -423,9 +439,11 @@ async function createAndStoreBriefing(summary: CallSummary): Promise<void> {
         now
       }
     );
-    emit("briefing.created");
+    await persistState();
+    await emit("briefing.created");
   } catch {
     state.latestBriefing = undefined;
+    await persistState();
   }
 }
 
@@ -457,4 +475,12 @@ function createSummaryText(): string {
   }
 
   return "Check-in completed without evidence requiring caregiver action.";
+}
+
+export function configureDemoStateRepositoryForTests(
+  nextRepository: CareVoiceStateRepository = new MemoryCareVoiceStateRepository()
+) {
+  repository = nextRepository;
+  state = createResetState();
+  stateLoaded = false;
 }

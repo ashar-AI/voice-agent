@@ -3,18 +3,20 @@ import test from "node:test";
 import { DEMO_ELDER_ID } from "./demoData.js";
 import {
   completeCallSession,
+  configureDemoStateRepositoryForTests,
   handleConversationTurn,
   startScenario,
   subscribeDashboardEvents
 } from "./demoEngine.js";
 
-test.beforeEach(() => {
+test.beforeEach(async () => {
   process.env.AGENT_MODE = "fallback";
   delete process.env.GEMINI_API_KEY;
+  configureDemoStateRepositoryForTests();
 });
 
 test("demo engine evaluates the elder utterance through the agent adapter independent of scenario", async () => {
-  const normalScenario = startScenario({
+  const normalScenario = await startScenario({
     elderId: DEMO_ELDER_ID,
     scenarioId: "normal_check_in"
   });
@@ -29,7 +31,7 @@ test("demo engine evaluates the elder utterance through the agent adapter indepe
   assert.equal(fallResult.snapshot.riskState.alertRequired, true);
   assert.equal(fallResult.snapshot.alerts.length, 1);
 
-  const fallScenario = startScenario({
+  const fallScenario = await startScenario({
     elderId: DEMO_ELDER_ID,
     scenarioId: "fall_dizziness_escalation"
   });
@@ -46,7 +48,7 @@ test("demo engine evaluates the elder utterance through the agent adapter indepe
 });
 
 test("demo engine creates a caregiver briefing after call completion", async () => {
-  const started = startScenario({
+  const started = await startScenario({
     elderId: DEMO_ELDER_ID,
     scenarioId: "fall_dizziness_escalation"
   });

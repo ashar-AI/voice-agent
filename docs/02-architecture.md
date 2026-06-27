@@ -25,18 +25,21 @@ Current implementation is a local scaffold:
 ```text
 React caregiver dashboard
   -> Fastify API
-  -> in-memory demo state
-  -> fallback local evaluator
+  -> CareVoice state repository
+  -> fallback or Gemini decision adapter
+  -> validated tool handlers
   -> SSE/HTTP dashboard updates
 ```
 
 The fallback evaluator exists only to keep local development and hackathon backup demo reliable before Gemini credentials are available. It is not the target intelligence layer.
 
-Known scaffold gaps:
+The state repository defaults to memory mode for deterministic local demos and can be switched to Firestore on Cloud Run with `STATE_REPOSITORY=firestore`.
 
-- current code still uses the older fallback risk enum until Phase 1 migrates contracts to `stable/watch/concern/high/urgent`
-- current dashboard still includes secondary demo controls until Gemini Live is wired
-- current state is in-memory until Firestore is added
+Known implementation gaps:
+
+- Gemini Live browser voice is not wired yet.
+- Dashboard still includes secondary demo controls until Gemini Live is wired.
+- Firestore mode is implemented but still needs deployed Cloud Run verification.
 
 ## Service Responsibilities
 

@@ -34,8 +34,15 @@ GEMINI_API_KEY=<secret>
 GEMINI_REASONING_MODEL=gemini-3.5-flash
 GEMINI_LIVE_MODEL=gemini-3.1-flash-live-preview
 AGENT_MODE=fallback|gemini
-STATE_STORE=memory|firestore
+STATE_REPOSITORY=memory|firestore
+FIRESTORE_STATE_COLLECTION=carevoice_states
 ```
+
+`STATE_REPOSITORY` defaults to `memory`, which keeps the deterministic local
+hackathon fallback working without Google credentials. Set
+`STATE_REPOSITORY=firestore` on Cloud Run to persist CareVoice state in
+Firestore. The API uses Application Default Credentials, so grant the Cloud Run
+service account Firestore access and do not commit service account keys.
 
 ## Verification
 
@@ -48,4 +55,6 @@ Acceptance:
 - health endpoint works
 - dashboard can connect to API
 - one check-in flow works
+- local/default memory mode works without Google credentials
+- Firestore mode is enabled only through Cloud Run env/config
 - no secrets are committed

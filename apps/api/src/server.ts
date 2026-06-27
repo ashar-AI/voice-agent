@@ -45,7 +45,7 @@ export function buildServer() {
     try {
       const params = ElderParamsSchema.parse(request.params);
       assertKnownElder(params.elderId);
-      return getDashboardSnapshot();
+      return await getDashboardSnapshot();
     } catch (error) {
       return handleRouteError(reply, error);
     }
@@ -69,11 +69,12 @@ export function buildServer() {
       };
 
       const unsubscribe = subscribeDashboardEvents(writeEvent);
+      const snapshot = await getDashboardSnapshot();
       writeEvent({
         eventId: "initial",
         eventType: "snapshot.updated",
         elderId: params.elderId,
-        payload: getDashboardSnapshot(),
+        payload: snapshot,
         emittedAt: new Date().toISOString()
       });
 
@@ -83,12 +84,12 @@ export function buildServer() {
     }
   });
 
-  app.post("/api/demo/reset", async () => resetDemoState());
+  app.post("/api/demo/reset", async () => await resetDemoState());
 
   app.post("/api/scenarios/start", async (request, reply) => {
     try {
       const input = StartScenarioRequestSchema.parse(request.body);
-      return startScenario(input);
+      return await startScenario(input);
     } catch (error) {
       return handleRouteError(reply, error);
     }

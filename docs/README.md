@@ -24,6 +24,8 @@ Read in this order:
    - Cloud Run deployment and environment setup.
 8. [Task Dependency Hierarchy](./08-task-dependency-hierarchy.md)
    - Small executable tasks, dependencies, owner split, merge order.
+9. [Browser Voice Plan](./09-browser-voice-plan.md)
+   - Concrete T60 browser voice bootstrap and Live API implementation checklist.
 
 Archived earlier drafts live under [`archive/`](./archive/).
 
@@ -37,5 +39,6 @@ Archived earlier drafts live under [`archive/`](./archive/).
 - Presentation/demo flow changes go in `06-demo-script.md`.
 - Deploy or environment changes go in `07-deployment.md`.
 - Task breakdown, ownership, dependency order, or merge sequencing changes go in `08-task-dependency-hierarchy.md`.
+- Browser voice session implementation details go in `09-browser-voice-plan.md`.
 
 Do not duplicate the same decision across multiple docs. Link to the source of truth instead.

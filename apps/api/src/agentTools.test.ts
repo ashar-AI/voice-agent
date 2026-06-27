@@ -12,6 +12,7 @@ import {
 } from "@voice-agent/contracts";
 import { DEMO_ELDER_ID } from "./demoData.js";
 import {
+  configureDemoStateRepositoryForTests,
   getDashboardSnapshot,
   resetDemoState,
   subscribeDashboardEvents
@@ -21,10 +22,11 @@ import { buildServer } from "./server.js";
 test.beforeEach(() => {
   process.env.AGENT_MODE = "fallback";
   delete process.env.GEMINI_API_KEY;
+  configureDemoStateRepositoryForTests();
 });
 
 test("agent profile tool returns the elder profile", async (t) => {
-  resetDemoState();
+  await resetDemoState();
   const app = buildServer();
   t.after(async () => app.close());
 
@@ -43,7 +45,7 @@ test("agent profile tool returns the elder profile", async (t) => {
 });
 
 test("agent memory tools save and retrieve recent memories", async (t) => {
-  resetDemoState();
+  await resetDemoState();
   const app = buildServer();
   t.after(async () => app.close());
 
@@ -81,7 +83,7 @@ test("agent memory tools save and retrieve recent memories", async (t) => {
 });
 
 test("agent risk update tool persists call risk state", async (t) => {
-  resetDemoState();
+  await resetDemoState();
   const app = buildServer();
   t.after(async () => app.close());
   const started = await startScenario(app);
@@ -102,11 +104,14 @@ test("agent risk update tool persists call risk state", async (t) => {
   const output = UpdateCallStateToolOutputSchema.parse(response.json());
   assert.equal(output.riskState.riskLevel, "watch");
   assert.equal(output.snapshot.riskState.riskScore, 31);
-  assert.equal(getDashboardSnapshot().riskState.recommendedAction, "Ask one more mobility question");
+  assert.equal(
+    (await getDashboardSnapshot()).riskState.recommendedAction,
+    "Ask one more mobility question"
+  );
 });
 
 test("agent alert tool creates a dashboard alert", async (t) => {
-  resetDemoState();
+  await resetDemoState();
   const app = buildServer();
   t.after(async () => app.close());
 
@@ -127,11 +132,11 @@ test("agent alert tool creates a dashboard alert", async (t) => {
   const output = CreateAlertToolOutputSchema.parse(response.json());
   assert.match(output.alert.id, /^alert_/);
   assert.equal(output.alert.acknowledged, false);
-  assert.equal(getDashboardSnapshot().alerts[0]?.id, output.alert.id);
+  assert.equal((await getDashboardSnapshot()).alerts[0]?.id, output.alert.id);
 });
 
 test("agent final summary tool stores the summary and completes the call", async (t) => {
-  resetDemoState();
+  await resetDemoState();
   const app = buildServer();
   t.after(async () => app.close());
   const started = await startScenario(app);
@@ -157,7 +162,7 @@ test("agent final summary tool stores the summary and completes the call", async
 
   assert.equal(response.statusCode, 200);
   const output = FinalizeCallSummaryToolOutputSchema.parse(response.json());
-  const snapshot = getDashboardSnapshot();
+  const snapshot = await getDashboardSnapshot();
   assert.match(output.summary.id, /^summary_/);
   assert.equal(snapshot.latestSummary?.id, output.summary.id);
   assert.equal(snapshot.latestBriefing?.sessionId, started.session.sessionId);

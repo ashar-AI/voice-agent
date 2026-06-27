@@ -237,6 +237,8 @@ Status: `Ready`
 
 Dependencies: T30, T40, T50
 
+Implementation checklist: [`09-browser-voice-plan.md`](./09-browser-voice-plan.md)
+
 Owner fit: Gemini/frontend/backend
 
 Tasks:
@@ -261,7 +263,7 @@ Acceptance:
 
 ### T70: Firestore Persistence
 
-Status: `Ready`
+Status: `Done`
 
 Dependencies: T10, T30
 
@@ -278,6 +280,8 @@ Tasks:
 Output:
 
 - State can survive backend restart when Firestore is enabled.
+- Local memory mode remains the default for deterministic demos without Google credentials.
+- `STATE_REPOSITORY=memory|firestore` selects the repository implementation.
 
 Acceptance:
 
